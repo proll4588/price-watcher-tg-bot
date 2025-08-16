@@ -31,8 +31,8 @@ print_error() {
 
 # Параметры
 ENVIRONMENT=${1:-production}
-PROJECT_NAME="my-app"
-PROJECT_DIR="/home/deploy/projects/$PROJECT_NAME"
+PROJECT_NAME="price-watcher-tg-bot"
+PROJECT_DIR="/home/punk/projects/$PROJECT_NAME"
 BACKUP_DIR="/backups/$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="/var/log/deployments/$PROJECT_NAME.log"
 
