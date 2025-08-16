@@ -2,15 +2,12 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [release]
     tags: ["v*.*.*"]
-  pull_request:
-    branches: [release]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/release' || startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout code
@@ -46,14 +43,9 @@ jobs:
                 docker-compose down
                 
                 # Обновляем код
-                if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-                  # Если это тег, переключаемся на него
-                  git fetch origin --tags
-                  git checkout ${{ github.ref_name }}
-                else
-                  # Если это release ветка
-                  git pull origin release
-                fi
+                # Переключаемся на тег
+                git fetch origin --tags
+                git checkout ${{ github.ref_name }}
                 
                 # Создаем .env файл с секретами
                 cat > .env << 'ENV_CONTENT'

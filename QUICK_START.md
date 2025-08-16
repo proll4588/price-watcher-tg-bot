@@ -58,6 +58,10 @@ docker-compose restart
 
 # Обновление кода
 git pull && docker-compose up -d --build
+
+# Создание тега для деплоя
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ## 🔧 Устранение проблем

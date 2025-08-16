@@ -18,10 +18,7 @@
 ```yaml
 on:
   push:
-    branches: [release]     # Деплой при push в release
-    tags: ["v*.*.*"]        # Деплой при создании тега
-  pull_request:
-    branches: [release]     # Тесты при PR
+    tags: ["v*.*.*"]        # Деплой только при создании тега
 ```
 
 ### 2. Проверка условий деплоя
@@ -29,7 +26,7 @@ on:
 ```yaml
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/release' || startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
 ```
 
 ### 3. Проверка секретов
@@ -51,24 +48,22 @@ TELEGRAM_BOT_TOKEN       # Токен Telegram бота
 
 ### 1. Исправление триггеров
 
-Если деплой не запускается при push в release:
+Если деплой не запускается при создании тега:
 
 ```yaml
 on:
   push:
-    branches: [release, main]  # Добавьте нужные ветки
-  pull_request:
-    branches: [release, main]
+    tags: ["v*.*.*", "release-*"]  # Добавьте нужные паттерны тегов
 ```
 
 ### 2. Исправление условий
 
 ```yaml
-# Для деплоя только на release
-if: github.ref == 'refs/heads/release'
+# Для деплоя только на теги
+if: startsWith(github.ref, 'refs/tags/')
 
-# Для деплоя на release и теги
-if: github.ref == 'refs/heads/release' || startsWith(github.ref, 'refs/tags/')
+# Для деплоя на конкретный паттерн тегов
+if: startsWith(github.ref, 'refs/tags/v')
 ```
 
 # Для деплоя только на теги
@@ -118,7 +113,7 @@ on:
 if: always()
 
 # Или упростите условие
-if: github.ref == 'refs/heads/release'
+if: startsWith(github.ref, 'refs/tags/')
 ```
 
 ### Проблема: "Secret not found"
@@ -156,13 +151,16 @@ on:
 
 ### 2. Тестовый деплой
 
-Создайте тестовую ветку:
+Создайте тестовый тег:
 
 ```bash
-git checkout -b test-deploy
-git push origin test-deploy
-# Или используйте существующую ветку release
-git push origin release
+# Создайте тег
+git tag v1.0.0-test
+git push origin v1.0.0-test
+
+# Или используйте существующий тег
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ### 3. Проверка логов
