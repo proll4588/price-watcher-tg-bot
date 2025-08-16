@@ -15,6 +15,7 @@
 - **[Настройка проекта](SETUP.md)** - Общая настройка проекта
 - **[Развертывание](DEPLOYMENT.md)** - Инструкции по развертыванию
 - **[Устранение проблем с Puppeteer](PUPPETEER_TROUBLESHOOTING.md)** - Решение проблем с Chrome/Puppeteer
+- **[Устранение проблем с GitHub Actions](GITHUB_ACTIONS_TROUBLESHOOTING.md)** - Решение проблем с CI/CD
 
 ## 🎯 Для кого эта документация
 
