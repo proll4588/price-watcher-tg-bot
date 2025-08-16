@@ -60,6 +60,22 @@ docker-compose restart
 git pull && docker-compose up -d --build
 ```
 
+## 🔧 Устранение проблем
+
+### Ошибка Puppeteer/Chrome
+
+Если возникает ошибка при сборке Docker образа:
+
+```bash
+# Используйте альтернативный Dockerfile с Chrome
+docker-compose -f docker-compose.chrome.yml up -d
+
+# Или проверьте переменные окружения
+docker-compose config
+```
+
+Подробнее: [Устранение проблем с Puppeteer](docs/PUPPETEER_TROUBLESHOOTING.md)
+
 ## 🆘 Поддержка
 
 - Создайте Issue в репозитории

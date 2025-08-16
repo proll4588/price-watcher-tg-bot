@@ -1,4 +1,4 @@
-# Используем официальный образ Node.js
+# Dockerfile с полной установкой Chrome для Puppeteer
 FROM node:20-alpine AS base
 
 # Устанавливаем зависимости для сборки, Prisma и Puppeteer
@@ -12,7 +12,8 @@ RUN apk add --no-cache \
     freetype-dev \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    dumb-init
 
 # Создаем рабочую директорию
 WORKDIR /app
@@ -21,9 +22,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Устанавливаем зависимости с пропуском загрузки Chrome
-ENV PUPPETEER_SKIP_DOWNLOAD=true
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Устанавливаем зависимости (включая Puppeteer)
 RUN npm ci --only=production && npm cache clean --force
 
 # Генерируем Prisma клиент для продакшна
@@ -55,7 +54,8 @@ RUN apk add --no-cache \
     freetype-dev \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    dumb-init
 
 # Создаем пользователя
 RUN addgroup -g 1001 -S nodejs
@@ -68,8 +68,14 @@ COPY --from=base /app/package*.json ./
 COPY --from=base /app/prisma ./prisma
 COPY --from=base /app/tsconfig.json ./
 
-# Меняем владельца файлов
-RUN chown -R nodejs:nodejs /app
+# Настраиваем Chrome для Puppeteer
+ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV CHROME_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+# Создаем директорию для Chrome
+RUN mkdir -p /app/.cache/puppeteer && \
+    chown -R nodejs:nodejs /app
 
 # Переключаемся на пользователя nodejs
 USER nodejs
@@ -81,5 +87,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node dist/health-check.js
 
-# Запускаем приложение
+# Запускаем приложение с dumb-init
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/index.js"]
