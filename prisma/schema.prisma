@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  telegramId BigInt  @unique
+  username  String?
+  firstName String?
+  lastName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Subscription
+  subscriptionTier SubscriptionTier @default(FREE)
+  subscriptionExpiresAt DateTime?
+  
+  // Relations
+  tracks Track[]
+  notifications Notification[]
+  
+  @@map("users")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  url         String   @unique
+  provider    String   // ozon, wildberries, yandex_market, etc.
+  productId   String?  // External product ID from provider
+  title       String?
+  imageUrl    String?
+  currentPrice Decimal? @db.Decimal(10, 2)
+  currency    String   @default("RUB")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tracks Track[]
+  priceSnapshots PriceSnapshot[]
+  
+  @@map("products")
+}
+
+model Track {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Price alert settings
+  minPrice    Decimal? @db.Decimal(10, 2)
+  maxPrice    Decimal? @db.Decimal(10, 2)
+  discountThreshold Decimal? @db.Decimal(5, 2) // Percentage
+  
+  // Check interval (in hours)
+  checkIntervalHours Float @default(6)
+  
+  // Status
+  isActive    Boolean @default(true)
+  lastChecked DateTime?
+  
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, productId])
+  @@map("tracks")
+}
+
+model PriceSnapshot {
+  id        String   @id @default(cuid())
+  productId String
+  price     Decimal  @db.Decimal(10, 2)
+  currency  String   @default("RUB")
+  timestamp DateTime @default(now())
+  
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@map("price_snapshots")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  trackId   String?
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?    // Additional data (price change, etc.)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+model AffiliateConfig {
+  id        String   @id @default(cuid())
+  provider  String   @unique // ozon, wildberries, yandex_market
+  token     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("affiliate_configs")
+}
+
+model FeatureFlag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("feature_flags")
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+}
+
+enum NotificationType {
+  PRICE_DROP
+  PRICE_INCREASE
+  PRODUCT_UNAVAILABLE
+  SYSTEM
+}
