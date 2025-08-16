@@ -97,7 +97,7 @@ log "DEPLOY: Контейнеры остановлены"
 # Обновляем код
 print_info "Обновляем код из репозитория..."
 git fetch origin
-git reset --hard origin/main
+git reset --hard origin/release
 log "DEPLOY: Код обновлен до версии $(git rev-parse --short HEAD)"
 
 # Создаем .env файл если не существует
