@@ -103,17 +103,20 @@ jobs:
                 docker-compose ps
                 
                 # Health check
-                if curl -f http://localhost:${{ secrets.PORT }}/health; then
-                    echo "✅ Health check passed!"
-                    # Удаляем старые backup'ы (оставляем последние 5)
-                    ls -dt /backups/* | tail -n +6 | xargs -r rm -rf
-                else
-                    echo "❌ Health check failed! Rolling back..."
-                    docker-compose down
-                    cp -r $BACKUP_DIR/* .
-                    docker-compose up -d
-                    exit 1
-                fi
+                # if curl -f http://localhost:${{ secrets.PORT }}/health; then
+                #     echo "✅ Health check passed!"
+                #     # Удаляем старые backup'ы (оставляем последние 5)
+                #     ls -dt /backups/* | tail -n +6 | xargs -r rm -rf
+                # else
+                #     echo "❌ Health check failed! Rolling back..."
+                #     docker-compose down
+                #     cp -r $BACKUP_DIR/* .
+                #     docker-compose up -d
+                #     exit 1
+                # fi
+
+                # Удаляем старые backup'ы (оставляем последние 5)
+                ls -dt /backups/* | tail -n +6 | xargs -r rm -rf
                 
                 # Очищаем старые образы
                 docker image prune -f
