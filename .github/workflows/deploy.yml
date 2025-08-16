@@ -23,95 +23,88 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.JUMP_SERVER_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Create deployment script
+        run: |
+          cat > deploy.sh << 'EOF'
+          #!/bin/bash
+          set -e
+
+          # Переходим в директорию проекта
+          cd ${{ secrets.PROJECT_PATH }}
+
+          # Создаем backup текущей версии
+          BACKUP_DIR="/backups/$(date +%Y%m%d_%H%M%S)"
+          mkdir -p $BACKUP_DIR
+          cp -r . $BACKUP_DIR/
+
+          # Останавливаем текущие контейнеры
+          docker-compose down
+
+          # Обновляем код
+          git fetch origin --tags
+          git checkout ${{ github.ref_name }}
+
+          # Создаем .env файл с секретами
+          cat > .env << 'ENV_EOF'
+          NODE_ENV=production
+          PORT=${{ secrets.PORT }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_URL=${{ secrets.TELEGRAM_WEBHOOK_URL }}
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          PROMETHEUS_PASSWORD=${{ secrets.PROMETHEUS_PASSWORD }}
+          LOG_LEVEL=${{ secrets.LOG_LEVEL }}
+          ENV_EOF
+
+          # Пересобираем образы
+          docker-compose build --no-cache
+
+          # Применяем миграции БД
+          docker-compose run --rm app npx prisma migrate deploy
+
+          # Запускаем новые контейнеры
+          docker-compose up -d
+
+          # Ждем запуска
+          sleep 15
+
+          # Проверяем статус контейнеров
+          docker-compose ps
+
+          # Удаляем старые backup'ы (оставляем последние 5)
+          ls -dt /backups/* | tail -n +6 | xargs -r rm -rf
+
+          # Очищаем старые образы
+          docker image prune -f
+
+          echo "✅ Деплой завершен успешно!"
+          EOF
+
       - name: Deploy through jump server
         run: |
-          ssh ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} << 'JUMP_COMMANDS'
-            # Передаем команды на домашний сервер через VPN
+          # Копируем скрипт на арендованный сервер
+          scp deploy.sh ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }}:/tmp/
+
+          # Выполняем деплой через арендованный сервер
+          ssh ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} << 'EOF'
+            # Копируем скрипт на домашний сервер
+            scp /tmp/deploy.sh ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }}:/tmp/
+            
+            # Выполняем деплой на домашнем сервере
             ssh -o StrictHostKeyChecking=no \
                 -o UserKnownHostsFile=/dev/null \
-                ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} << 'HOME_COMMANDS'
-                
-                # Переходим в директорию проекта
-                cd ${{ secrets.PROJECT_PATH }}
-                
-                # Создаем backup текущей версии
-                BACKUP_DIR="/backups/$(date +%Y%m%d_%H%M%S)"
-                mkdir -p $BACKUP_DIR
-                cp -r . $BACKUP_DIR/
-                
-                # Останавливаем текущие контейнеры
-                docker-compose down
-                
-                # Обновляем код
-                # Переключаемся на тег
-                git fetch origin --tags
-                git checkout ${{ github.ref_name }}
-                
-                # Создаем .env файл с секретами
-                cat > .env << 'ENV_CONTENT'
-                NODE_ENV=production
-                PORT=${{ secrets.PORT }}
-                DATABASE_URL=${{ secrets.DATABASE_URL }}
-                POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-                POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-                POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-                TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
-                TELEGRAM_WEBHOOK_URL=${{ secrets.TELEGRAM_WEBHOOK_URL }}
-                REDIS_URL=${{ secrets.REDIS_URL }}
-                GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-                PROMETHEUS_PASSWORD=${{ secrets.PROMETHEUS_PASSWORD }}
-                LOG_LEVEL=${{ secrets.LOG_LEVEL }}
-                ENV_CONTENT
-                
-                # Пересобираем образы
-                docker-compose build --no-cache
-                
-                # Применяем миграции БД
-                docker-compose run --rm app npx prisma migrate deploy
-                
-                # Запускаем новые контейнеры
-                docker-compose up -d
-                
-                # Ждем запуска
-                sleep 15
-                
-                # Проверяем статус контейнеров
-                docker-compose ps
-                
-                # Health check
-                # if curl -f http://localhost:${{ secrets.PORT }}/health; then
-                #     echo "✅ Health check passed!"
-                #     # Удаляем старые backup'ы (оставляем последние 5)
-                #     ls -dt /backups/* | tail -n +6 | xargs -r rm -rf
-                # else
-                #     echo "❌ Health check failed! Rolling back..."
-                #     docker-compose down
-                #     cp -r $BACKUP_DIR/* .
-                #     docker-compose up -d
-                #     exit 1
-                # fi
-
-                # Удаляем старые backup'ы (оставляем последние 5)
-                ls -dt /backups/* | tail -n +6 | xargs -r rm -rf
-                
-                # Очищаем старые образы
-                docker image prune -f
-                
-            HOME_COMMANDS
-          JUMP_COMMANDS
-
-      - name: Notify deployment status
-        if: always()
-        run: |
-          if [ ${{ job.status }} == 'success' ]; then
-            echo "✅ Деплой успешно завершен!"
-            echo "Версия: ${{ github.sha }}"
-            echo "Время: $(date)"
-          else
-            echo "❌ Деплой завершился с ошибкой!"
-            echo "Версия: ${{ github.sha }}"
-            echo "Время: $(date)"
-          fi
+                ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} << 'REMOTE_EOF'
+              chmod +x /tmp/deploy.sh
+              /tmp/deploy.sh
+            REMOTE_EOF
+            
+            # Очищаем временные файлы
+            rm -f /tmp/deploy.sh
+          EOF
 
       - name: Notify deployment status
         if: always()
