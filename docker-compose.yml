@@ -13,7 +13,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - LOG_LEVEL=${LOG_LEVEL}
       - PRISMA_CLIENT_ENGINE_TYPE=library
-      - CHROME_BIN={CHROME_BIN}
+      - CHROME_BIN=/usr/bin/chromium-browser
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,7 +33,7 @@ services:
       - REDIS_URL=${REDIS_URL}
       - LOG_LEVEL=${LOG_LEVEL}
       - PRISMA_CLIENT_ENGINE_TYPE=library
-      - CHROME_BIN=${CHROME_BIN}
+      - CHROME_BIN=/usr/bin/chromium-browser
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,7 +54,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - LOG_LEVEL=${LOG_LEVEL}
       - PRISMA_CLIENT_ENGINE_TYPE=library
-      - CHROME_BIN=${CHROME_BIN}
+      - CHROME_BIN=/usr/bin/chromium-browser
     depends_on:
       postgres:
         condition: service_healthy
