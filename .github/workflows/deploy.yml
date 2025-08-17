@@ -22,6 +22,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.JUMP_SERVER_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.HOME_SERVER_IP }} >> ~/.ssh/known_hosts
 
       - name: Create deployment script
         run: |
@@ -90,12 +91,12 @@ jobs:
           scp deploy.sh ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }}:/tmp/
 
           # Выполняем деплой через арендованный сервер
-          ssh ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} << 'EOF'
+          ssh -T ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} << 'EOF'
             # Копируем скрипт на домашний сервер
-            scp /tmp/deploy.sh ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }}:/tmp/
+            scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/deploy.sh ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }}:/tmp/
             
             # Выполняем деплой на домашнем сервере
-            ssh -o StrictHostKeyChecking=no \
+            ssh -T -o StrictHostKeyChecking=no \
                 -o UserKnownHostsFile=/dev/null \
                 ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} << 'REMOTE_EOF'
               chmod +x /tmp/deploy.sh
