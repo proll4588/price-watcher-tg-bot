@@ -14,7 +14,6 @@ export async function helpCommand(ctx: Context): Promise<void> {
       `/pro - Информация о Pro-подписке\n` +
       `/help - Эта справка\n\n` +
       `🔗 Поддерживаемые маркетплейсы:\n` +
-      `• Ozon (ozon.ru, ozon.com)\n` +
       `• Wildberries (wildberries.ru, wildberries.com)\n` +
       `• Яндекс.Маркет (market.yandex.ru) - скоро\n\n` +
       `⚙️ Как использовать:\n` +

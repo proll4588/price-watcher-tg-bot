@@ -111,7 +111,6 @@ class TelegramBot {
       await ctx.reply(
         "Отправьте ссылку на товар, чтобы начать отслеживание цены.\n\n" +
           "Поддерживаемые маркетплейсы:\n" +
-          "• Ozon (ozon.ru)\n" +
           "• Wildberries (wildberries.ru)\n\n" +
           "Используйте /help для получения справки."
       );
@@ -252,9 +251,7 @@ class TelegramBot {
   }
 
   private getProviderFromUrl(url: string): string {
-    if (url.includes("ozon.ru") || url.includes("ozon.com")) {
-      return "ozon";
-    } else if (url.includes("wildberries.ru") || url.includes("wildberries.com")) {
+    if (url.includes("wildberries.ru") || url.includes("wildberries.com")) {
       return "wildberries";
     }
     return "unknown";

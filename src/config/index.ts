@@ -49,7 +49,6 @@ const configSchema = z.object({
 
   // Affiliate Links
   affiliate: z.object({
-    ozon: z.string().optional(),
     wildberries: z.string().optional(),
     yandexMarket: z.string().optional(),
   }),
@@ -62,7 +61,6 @@ const configSchema = z.object({
 
   // Feature Flags
   features: z.object({
-    enableOzon: z.boolean().default(true),
     enableWildberries: z.boolean().default(true),
     enableYandexMarket: z.boolean().default(true),
   }),
@@ -93,7 +91,6 @@ const config = configSchema.parse({
     proCheckIntervalHours: parseFloat(process.env["PRO_CHECK_INTERVAL_HOURS"] || "0.0833333"), // 5 минут
   },
   affiliate: {
-    ozon: process.env["OZON_AFFILIATE_TOKEN"],
     wildberries: process.env["WILDBERRIES_AFFILIATE_TOKEN"],
     yandexMarket: process.env["YANDEX_MARKET_AFFILIATE_TOKEN"],
   },
@@ -102,7 +99,6 @@ const config = configSchema.parse({
     prometheusPort: parseInt(process.env["PROMETHEUS_PORT"] || "9090"),
   },
   features: {
-    enableOzon: process.env["ENABLE_OZON_PROVIDER"] === "true",
     enableWildberries: process.env["ENABLE_WILDBERRIES_PROVIDER"] === "true",
     enableYandexMarket: process.env["ENABLE_YANDEX_MARKET_PROVIDER"] === "true",
   },

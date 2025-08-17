@@ -15,7 +15,6 @@ export async function addCommand(ctx: ExtendedContext): Promise<void> {
       await ctx.reply(
         "📝 Использование: /add <ссылка на товар>\n\n" +
           "Примеры:\n" +
-          "/add https://www.ozon.ru/product/123456789/\n" +
           "/add https://www.wildberries.ru/catalog/12345678/detail.aspx\n\n" +
           "Или просто отправьте ссылку на товар в чат!"
       );
