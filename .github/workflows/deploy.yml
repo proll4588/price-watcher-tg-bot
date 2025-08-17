@@ -13,74 +13,71 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Add jump server to known hosts
+      - name: Setup WireGuard VPN
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          echo "🔧 Настраиваем WireGuard VPN..."
 
-          # Добавляем ключи хостов с обработкой ошибок
-          ssh-keyscan -H ${{ secrets.JUMP_SERVER_HOST }} >> ~/.ssh/known_hosts || echo "Warning: Could not scan jump server"
-          ssh-keyscan -H ${{ secrets.HOME_SERVER_IP }} >> ~/.ssh/known_hosts || echo "Warning: Could not scan home server"
+          # Устанавливаем WireGuard
+          apt-get update && apt-get install -y wireguard wireguard-tools
 
-          chmod 600 ~/.ssh/known_hosts
+          # Создаем конфигурацию WireGuard
+          mkdir -p /etc/wireguard
+          cat > /etc/wireguard/wg0.conf << 'EOF'
+          ${{ secrets.WIREGUARD_CONFIG }}
+          EOF
 
-      - name: Test SSH connection step by step
+          # Устанавливаем правильные права
+          chmod 600 /etc/wireguard/wg0.conf
+
+          # Запускаем VPN
+          echo "🚀 Запускаем WireGuard VPN..."
+          wg-quick up wg0
+
+          # Ждем установки соединения
+          echo "⏳ Ждем установки VPN соединения..."
+          sleep 10
+
+          # Проверяем статус VPN
+          echo "🔍 Проверяем статус WireGuard:"
+          wg show
+
+          # Проверяем маршрутизацию
+          echo "🔍 Проверяем маршрутизацию:"
+          ip route show
+
+      - name: Test VPN connection
         run: |
-          echo "🔍 Тестируем подключение пошагово..."
+          echo "🔍 Тестируем VPN подключение..."
 
-          echo "1️⃣ Тестируем подключение к jump server..."
-          ssh -T -o ConnectTimeout=10 -o BatchMode=yes ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} "echo '✅ Подключение к jump server успешно'" || {
-            echo "❌ Не удалось подключиться к jump server"
+          # Проверяем доступность home server через VPN
+          echo "1️⃣ Проверяем доступность home server через VPN..."
+          ping -c 3 ${{ secrets.HOME_SERVER_VPN_IP }} || {
+            echo "❌ Не удалось подключиться к home server через VPN"
+            echo "🔍 Проверьте:"
+            echo "   - WireGuard конфигурацию в GitHub Secrets"
+            echo "   - VPN IP адрес home server"
+            echo "   - Статус WireGuard на home server"
             exit 1
           }
 
-          echo "2️⃣ Тестируем подключение к home server через jump server..."
-
-          # Сначала проверим, может ли jump server подключиться к home server напрямую
-          echo "🔍 Проверяем подключение jump server → home server..."
-          ssh -T -o ConnectTimeout=10 -o BatchMode=yes ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} "ssh -T -o ConnectTimeout=10 -o BatchMode=yes -i ~/.ssh/home_server_key ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} 'echo \"Jump server может подключиться к home server\"'" || {
-            echo "❌ Jump server не может подключиться к home server"
-            echo "🔍 Проверьте на jump server:"
-            echo "   - ssh -i ~/.ssh/home_server_key ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }}"
-            echo "   - ls -la ~/.ssh/home_server_key*"
-            echo "   - cat ~/.ssh/home_server_key.pub"
-            echo "🔍 Проверьте на home server:"
-            echo "   - grep 'ssh-rsa' ~/.ssh/authorized_keys"
-            echo "   - chmod 600 ~/.ssh/authorized_keys"
+          echo "2️⃣ Тестируем SSH подключение через VPN..."
+          ssh -T -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_VPN_IP }} "echo '✅ SSH подключение через VPN работает'" || {
+            echo "❌ Не удалось подключиться по SSH через VPN"
+            echo "🔍 Проверьте SSH ключи и настройки"
             exit 1
           }
 
-          # Теперь тестируем через ProxyJump с явным указанием SSH ключа
-          ssh -T -o ConnectTimeout=10 -o BatchMode=yes -i ~/.ssh/id_rsa -J ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} "echo '✅ Подключение к home server успешно'" || {
-            echo "❌ Не удалось подключиться к home server через jump server"
-            echo "🔍 Возможные причины:"
-            echo "   - SSH ключ jump server не добавлен в authorized_keys на home server"
-            echo "   - Неправильные права доступа на SSH ключи"
-            echo "   - Проблемы с сетевым подключением"
-            echo "🔍 Проверьте на home server:"
-            echo "   - grep 'ssh-rsa' ~/.ssh/authorized_keys"
-            echo "   - chmod 600 ~/.ssh/authorized_keys"
-            exit 1
-          }
-
-          echo "✅ Все подключения работают!"
+          echo "✅ VPN подключение работает!"
 
       - name: Deploy to home server
         run: |
-          echo "🚀 Подключаемся к домашнему серверу через jump server и запускаем деплой..."
+          echo "🚀 Подключаемся к домашнему серверу через VPN и запускаем деплой..."
 
-          # Подключаемся к домашнему серверу через jump server и запускаем скрипт деплоя
+          # Подключаемся к домашнему серверу через VPN и запускаем скрипт деплоя
           ssh -T -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
               -o ConnectTimeout=10 \
-              -i ~/.ssh/id_rsa \
-              -J ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} \
-              ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} << 'EOF'
+              ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_VPN_IP }} << 'EOF'
             set -e
             
             echo "🔄 Переходим в директорию проекта..."

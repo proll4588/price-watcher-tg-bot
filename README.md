@@ -232,6 +232,7 @@ GitHub → GitHub Actions → Арендованный сервер → VPN → 
 - [Настройка окружения](docs/ENVIRONMENT_SETUP.md)
 - [🔐 **Настройка GitHub Secrets**](docs/GITHUB_SECRETS_SETUP.md) - **Пошаговая настройка SSH ключей и секретов**
 - [🔧 **SSH Troubleshooting**](docs/SSH_TROUBLESHOOTING.md) - **Устранение проблем с SSH подключениями**
+- [🔧 **WireGuard Setup**](docs/WIREGUARD_SETUP.md) - **Настройка WireGuard VPN для CI/CD**
 
 ## 🏗️ Структура проекта
 

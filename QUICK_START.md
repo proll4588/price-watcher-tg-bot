@@ -38,7 +38,19 @@ docker-compose logs -f app
 
 ## CI/CD настройка
 
-### 1. Настройте SSH ключи
+### Вариант 1: WireGuard VPN (рекомендуемый)
+
+Следуйте инструкции: [🔧 WireGuard Setup](docs/WIREGUARD_SETUP.md)
+
+**Кратко:**
+
+1. Настройте WireGuard на home server: `sudo ./scripts/setup-wireguard.sh`
+2. Сгенерируйте конфигурацию: `./scripts/generate-wireguard-config.sh`
+3. Добавьте секреты в GitHub: `WIREGUARD_CONFIG`, `HOME_SERVER_VPN_IP`
+4. Добавьте peer на home server
+5. Создайте тег для тестирования
+
+### Вариант 2: SSH через Jump Server
 
 Следуйте пошаговой инструкции: [🔐 Настройка GitHub Secrets](docs/GITHUB_SECRETS_SETUP.md)
 
@@ -49,10 +61,6 @@ docker-compose logs -f app
 - Создайте SSH ключ на jump server
 - Добавьте публичный ключ на home server
 - Добавьте приватный ключ в GitHub Secrets
-
-### 2. Настройте GitHub Secrets
-
-Добавьте все необходимые секреты в GitHub репозиторий (см. [документацию](docs/GITHUB_SECRETS_SETUP.md))
 
 ### 3. Создайте тег для деплоя
 
