@@ -189,15 +189,15 @@ export class WildberriesProvider extends BaseProvider {
               // @ts-ignore
               fallbackPriceElement?.getAttribute("data-price");
 
-            // Определяем основную цену (приоритет: карта WB > без карты > fallback)
-            const mainPrice = walletPrice || finalPrice || fallbackPrice;
+            // Определяем основную цену (приоритет: без карты > карта WB > fallback)
+            const mainPrice = finalPrice || walletPrice || fallbackPrice;
 
             // @ts-ignore
             const imageElement =
               // @ts-ignore
-              document.querySelector(".product-page__image img") ||
+              document.querySelector(".zoom-image-container img") ||
               // @ts-ignore
-              document.querySelector(".product-gallery__image img");
+              document.querySelector(".photo-zoom__preview img");
             // @ts-ignore
             const imageUrl =
               // @ts-ignore
