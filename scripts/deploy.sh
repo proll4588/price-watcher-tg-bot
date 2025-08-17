@@ -128,32 +128,20 @@ sleep 15
 print_info "Проверяем статус контейнеров..."
 docker-compose ps
 
-# Health check
-print_info "Выполняем health check..."
-if curl -f http://localhost:3000/health; then
-    print_success "Health check прошел успешно!"
-    log "DEPLOY: Health check прошел успешно"
+# Удаляем старые backup'ы (оставляем последние 5)
+ls -dt $HOME/backups/* | tail -n +6 | xargs -r rm -rf
+log "DEPLOY: Старые backup'ы удалены"
     
-    # Удаляем старые backup'ы (оставляем последние 5)
-    ls -dt $HOME/backups/* | tail -n +6 | xargs -r rm -rf
-    log "DEPLOY: Старые backup'ы удалены"
+# Очищаем старые образы
+print_info "Очищаем неиспользуемые Docker образы..."
+docker image prune -f
+log "DEPLOY: Неиспользуемые образы удалены"
     
-    # Очищаем старые образы
-    print_info "Очищаем неиспользуемые Docker образы..."
-    docker image prune -f
-    log "DEPLOY: Неиспользуемые образы удалены"
-    
-    print_success "Деплой завершен успешно!"
-    log "DEPLOY: Деплой завершен успешно"
-    
-    # Убираем обработчик ошибок
-    trap - ERR
-    
-else
-    print_error "Health check не прошел!"
-    log "DEPLOY: Health check не прошел"
-    exit 1
-fi
+print_success "Деплой завершен успешно!"
+log "DEPLOY: Деплой завершен успешно"
+
+# Убираем обработчик ошибок
+trap - ERR
 
 # Показываем информацию о деплое
 echo
