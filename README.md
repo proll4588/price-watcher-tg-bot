@@ -280,8 +280,6 @@ docs/
 
 ## 🔌 Провайдеры
 
-
-
 ### Wildberries
 
 - Поддерживаемые URL: `wildberries.ru`, `wildberries.com`

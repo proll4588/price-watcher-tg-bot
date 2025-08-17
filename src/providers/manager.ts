@@ -40,8 +40,7 @@ export class ProviderManager {
     if (!provider) {
       return {
         success: false,
-        error:
-          "Неподдерживаемый маркетплейс. Поддерживается: Wildberries",
+        error: "Неподдерживаемый маркетплейс. Поддерживается: Wildberries",
       };
     }
 
