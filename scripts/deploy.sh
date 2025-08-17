@@ -32,17 +32,17 @@ print_error() {
 # Параметры
 ENVIRONMENT=${1:-production}
 PROJECT_NAME="price-watcher-tg-bot"
-PROJECT_DIR="/home/punk/projects/$PROJECT_NAME"
-BACKUP_DIR="/backups/$(date +%Y%m%d_%H%M%S)"
-LOG_FILE="/var/log/deployments/$PROJECT_NAME.log"
+PROJECT_DIR="$(pwd)"
+BACKUP_DIR="$HOME/backups/$(date +%Y%m%d_%H%M%S)"
+LOG_FILE="$HOME/logs/deployments.log"
 
 # Создаем директории если не существуют
-mkdir -p /backups
-mkdir -p /var/log/deployments
+mkdir -p $HOME/backups
+mkdir -p $HOME/logs
 
 # Функция логирования
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a $LOG_FILE
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a $HOME/logs/deployments.log
 }
 
 # Функция отката
@@ -76,12 +76,10 @@ log "DEPLOY: Начинаем деплой версии $(git rev-parse --short 
 print_info "Начинаем деплой в окружении: $ENVIRONMENT"
 
 # Проверяем, что мы в правильной директории
-if [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
-    print_error "Файл docker-compose.yml не найден в $PROJECT_DIR"
+if [ ! -f "docker-compose.yml" ]; then
+    print_error "Файл docker-compose.yml не найден в текущей директории"
     exit 1
 fi
-
-cd $PROJECT_DIR
 
 # Создаем backup текущей версии
 print_info "Создаем backup текущей версии..."
@@ -100,11 +98,11 @@ git fetch origin
 git reset --hard origin/release
 log "DEPLOY: Код обновлен до версии $(git rev-parse --short HEAD)"
 
-# Создаем .env файл если не существует
+# Проверяем наличие .env файла
 if [ ! -f ".env" ]; then
-    print_warning "Файл .env не найден, создаем из примера..."
-    cp env.example .env
-    print_warning "Пожалуйста, отредактируйте .env файл с реальными значениями!"
+    print_error "Файл .env не найден! Создайте его перед деплоем."
+    print_error "Используйте: cp env.example .env && nano .env"
+    exit 1
 fi
 
 # Пересобираем образы
@@ -137,7 +135,7 @@ if curl -f http://localhost:3000/health; then
     log "DEPLOY: Health check прошел успешно"
     
     # Удаляем старые backup'ы (оставляем последние 5)
-    ls -dt /backups/* | tail -n +6 | xargs -r rm -rf
+    ls -dt $HOME/backups/* | tail -n +6 | xargs -r rm -rf
     log "DEPLOY: Старые backup'ы удалены"
     
     # Очищаем старые образы
