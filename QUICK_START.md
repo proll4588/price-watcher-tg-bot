@@ -40,12 +40,10 @@ docker-compose logs -f app
 
 ### Вариант 1: WireGuard VPN (рекомендуемый)
 
-Следуйте инструкции: [🔧 WireGuard Setup](docs/WIREGUARD_SETUP.md)
-
 **Кратко:**
 
-1. Настройте WireGuard на home server: `sudo ./scripts/setup-wireguard.sh`
-2. Сгенерируйте конфигурацию: `./scripts/generate-wireguard-config.sh`
+1. Настройте WireGuard на home server
+2. Сгенерируйте конфигурацию для GitHub Actions
 3. Добавьте секреты в GitHub: `WIREGUARD_CONFIG`, `HOME_SERVER_VPN_IP`, `SSH_PRIVATE_KEY`
 4. Добавьте peer на home server
 5. **Создайте .env файл на сервере:** `cp env.example .env && nano .env`
@@ -91,39 +89,36 @@ docker-compose ps
 
 ## Troubleshooting
 
-### Проблемы с Puppeteer
-
-Если возникают ошибки с Chrome, см. [🐛 Troubleshooting Puppeteer](docs/PUPPETEER_TROUBLESHOOTING.md)
-
 ### Проблемы с CI/CD
 
 Если деплой не работает:
 
-1. **Запустите диагностику SSH:**
+1. **Проверьте SSH подключение:**
 
    ```bash
-   # На jump server
-   ./scripts/ssh-diagnostic.sh jump user@home-server-ip
-
-   # На home server
-   ./scripts/ssh-diagnostic.sh home
+   ssh user@home-server-ip "echo 'Подключение работает'"
    ```
 
-2. **Исправьте SSH ключи:**
+2. **Проверьте WireGuard VPN:**
 
    ```bash
-   # На jump server
-   ./scripts/fix-ssh-keys.sh jump user@home-server-ip
-
-   # На home server
-   ./scripts/fix-ssh-keys.sh home
+   sudo wg show
+   sudo systemctl status wg-quick@wg0
    ```
 
-3. **Проверьте документацию:** [🔧 Troubleshooting GitHub Actions](docs/GITHUB_ACTIONS_TROUBLESHOOTING.md)
+3. **Проверьте .env файл:**
+
+   ```bash
+   ls -la .env
+   ```
+
+4. **Проверьте логи деплоя:**
+   ```bash
+   tail -f ~/logs/deployments.log
+   ```
 
 ## Документация
 
 - 📚 [Полная документация](docs/README.md)
-- 🔐 [Настройка SSH ключей](docs/GITHUB_SECRETS_SETUP.md)
-- 🚀 [Настройка CI/CD](docs/CI_CD_SETUP.md)
+- 🔐 [Настройка GitHub Secrets](docs/GITHUB_SECRETS_SETUP.md)
 - ⚙️ [Настройка окружения](docs/ENVIRONMENT_SETUP.md)

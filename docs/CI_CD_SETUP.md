@@ -7,7 +7,7 @@
 ## Архитектура
 
 ```
-GitHub → GitHub Actions → Арендованный сервер → VPN → Домашний сервер (Docker)
+GitHub → GitHub Actions → WireGuard VPN → Домашний сервер (Docker)
 ```
 
 ## Быстрый старт
@@ -30,37 +30,17 @@ echo ".env" >> .gitignore
 
 Перейдите в `Settings` → `Secrets and variables` → `Actions` и добавьте:
 
-#### SSH подключение
+#### WireGuard VPN и SSH
 
-- `SSH_PRIVATE_KEY` - приватный SSH ключ для арендованного сервера
-- `JUMP_SERVER_HOST` - IP арендованного сервера
-- `JUMP_SERVER_USER` - пользователь на арендованном сервере
-- `HOME_SERVER_IP` - IP домашнего сервера в VPN
+- `WIREGUARD_CONFIG` - конфигурация WireGuard для GitHub Actions
+- `HOME_SERVER_VPN_IP` - IP домашнего сервера в VPN сети
+- `SSH_PRIVATE_KEY` - приватный SSH ключ для подключения к домашнему серверу
 - `HOME_SERVER_USER` - пользователь на домашнем сервере
 - `PROJECT_PATH` - путь к проекту на домашнем сервере
 
-#### Переменные приложения
+**Примечание:** Переменные окружения (.env) хранятся на сервере, а не в GitHub Secrets.
 
-- `PORT` - порт приложения (3000)
-- `DATABASE_URL` - строка подключения к PostgreSQL
-- `TELEGRAM_BOT_TOKEN` - токен Telegram бота
-- `TELEGRAM_WEBHOOK_URL` - URL для webhook
-
-### 3. Настройка серверов
-
-#### На арендованном сервере:
-
-```bash
-# Создаем пользователя deploy
-sudo adduser deploy
-sudo usermod -aG sudo deploy
-
-# Настраиваем SSH ключи
-mkdir -p /home/deploy/.ssh
-# Добавьте публичный ключ GitHub Actions в authorized_keys
-```
-
-#### На домашнем сервере:
+### 3. Настройка домашнего сервера
 
 ```bash
 # Создаем пользователя deploy
@@ -69,19 +49,31 @@ sudo usermod -aG docker deploy
 
 # Настраиваем SSH ключи
 mkdir -p /home/deploy/.ssh
-# Добавьте публичный ключ арендованного сервера в authorized_keys
+# Добавьте публичный ключ GitHub Actions в authorized_keys
 
 # Создаем директорию проекта
 mkdir -p /home/deploy/projects/my-app
+
+# Настраиваем WireGuard VPN
+sudo apt-get install wireguard wireguard-tools
+# Сгенерируйте ключи и настройте конфигурацию
 ```
 
-### 4. Первый деплой
+### 4. Создание .env файла на сервере
 
 ```bash
-# Сделайте push в main ветку
-git add .
-git commit -m "Initial commit with CI/CD setup"
-git push origin main
+# На домашнем сервере
+cd /home/deploy/projects/my-app
+cp env.example .env
+nano .env  # отредактируйте переменные
+```
+
+### 5. Первый деплой
+
+```bash
+# Создайте тег для деплоя
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ## Детальная настройка
@@ -92,36 +84,45 @@ git push origin main
 # Создаем ключ для GitHub Actions
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_key -N ""
 
-# Показываем публичный ключ
+# Показываем публичный ключ (добавить на сервер)
 cat ~/.ssh/github_actions_key.pub
 
 # Показываем приватный ключ (для GitHub Secrets)
 cat ~/.ssh/github_actions_key
 ```
 
-### 2. Настройка переменных окружения
-
-#### Создайте `.env` файл:
+### 2. Настройка WireGuard VPN
 
 ```bash
-# Основные настройки
+# На домашнем сервере
+sudo apt-get install wireguard wireguard-tools
+wg genkey | sudo tee /etc/wireguard/private.key
+sudo cat /etc/wireguard/private.key | wg pubkey | sudo tee /etc/wireguard/public.key
+
+# Создайте конфигурацию wg0.conf
+# Сгенерируйте конфигурацию для GitHub Actions
+```
+
+### 3. Настройка переменных окружения
+
+#### Создайте `.env` файл на сервере:
+
+```bash
+# На домашнем сервере
+cd /home/deploy/projects/my-app
+cp env.example .env
+nano .env  # отредактируйте переменные
+
+# Пример переменных:
 NODE_ENV=production
 PORT=3000
-
-# База данных
 DATABASE_URL=postgresql://user:password@localhost:5432/myapp
 POSTGRES_DB=myapp
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_password
-
-# Telegram Bot
 TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 TELEGRAM_WEBHOOK_URL=https://your-domain.com/webhook
-
-# Redis
 REDIS_URL=redis://localhost:6379
-
-# Мониторинг
 GRAFANA_ADMIN_PASSWORD=admin_password
 PROMETHEUS_PASSWORD=prometheus_password
 ```
@@ -151,12 +152,12 @@ services:
 
 ### Автоматический деплой
 
-При каждом push в `main` ветку:
+При создании тега (например, `v1.0.0`):
 
-1. Запускаются тесты
+1. Устанавливается WireGuard VPN
 2. Выполняется деплой на сервер
 3. Применяются миграции БД
-4. Выполняется health check
+4. Запускаются контейнеры
 
 ### Ручной деплой
 
@@ -169,11 +170,10 @@ cd /home/deploy/projects/my-app
 ### Откат изменений
 
 ```bash
-# Автоматический откат при ошибке health check
-# Или ручной откат
+# Ручной откат
 cd /home/deploy/projects/my-app
 docker-compose down
-cp -r /backups/YYYYMMDD_HHMMSS/* .
+cp -r ~/backups/YYYYMMDD_HHMMSS/* .
 docker-compose up -d
 ```
 
@@ -183,7 +183,7 @@ docker-compose up -d
 
 ```bash
 # Просмотр логов деплоя
-tail -f /var/log/deployments/my-app.log
+tail -f ~/logs/deployments.log
 
 # Просмотр логов контейнеров
 docker-compose logs -f app
@@ -198,7 +198,7 @@ docker-compose ps
 # Использование ресурсов
 docker stats
 
-# Health check
+# Проверка работы приложения
 curl http://localhost:3000/health
 ```
 
@@ -218,7 +218,8 @@ curl http://localhost:3000/health
 
 ### Сетевая безопасность
 
-- Используйте VPN для подключения серверов
+- Используйте WireGuard VPN для подключения GitHub Actions к серверу
+- Переменные окружения хранятся на сервере
 - Ограничивайте доступ к портам
 - Настройте firewall
 
@@ -240,11 +241,14 @@ ssh -v user@server-ip
 ```bash
 # Проверьте логи GitHub Actions
 # Проверьте логи на сервере
-tail -f /var/log/deployments/my-app.log
+tail -f ~/logs/deployments.log
 
 # Проверьте статус контейнеров
 docker-compose ps
 docker-compose logs app
+
+# Проверьте .env файл
+ls -la .env
 ```
 
 ### Ошибка базы данных
@@ -273,7 +277,7 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
 
 ```bash
 # Обновление кода
-git pull origin main
+git pull origin release
 
 # Перезапуск сервисов
 docker-compose restart
@@ -286,6 +290,10 @@ docker-compose logs -f
 
 # Очистка неиспользуемых образов
 docker image prune -f
+
+# Создание тега для деплоя
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ### Мониторинг
@@ -317,22 +325,22 @@ tar -xzf backup-YYYYMMDD.tar.gz -C /
 
 1. **Проверьте логи:**
    - GitHub Actions
-   - Сервера: `/var/log/deployments/my-app.log`
+   - Сервера: `~/logs/deployments.log`
    - Docker: `docker-compose logs`
 
 2. **Проверьте подключения:**
-   - SSH между серверами
+   - WireGuard VPN: `sudo wg show`
+   - SSH: `ssh user@server-ip "echo 'test'"`
    - База данных
    - Redis
    - Telegram API
 
 3. **Проверьте конфигурацию:**
    - GitHub Secrets
-   - Переменные окружения
+   - .env файл на сервере
    - Docker Compose
 
 4. **Выполните откат:**
-   - Автоматический при ошибке health check
    - Ручной из backup при необходимости
 
 ## Дополнительные возможности

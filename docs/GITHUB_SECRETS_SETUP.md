@@ -225,7 +225,14 @@ ls -la ~/.ssh/id_rsa*
 **На home server:**
 ```bash
 # Запускаем диагностику
-./scripts/ssh-diagnostic.sh home
+echo "🔍 Проверяем SSH директорию..."
+ls -la ~/.ssh/
+
+echo "🔍 Проверяем authorized_keys..."
+grep "ssh-rsa" ~/.ssh/authorized_keys
+
+echo "🔍 Проверяем SSH сервис..."
+sudo systemctl status ssh
 
 # Или вручную:
 # Проверяем, что ключ GitHub Actions добавлен

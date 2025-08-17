@@ -7,6 +7,7 @@
 ### 🚀 Быстрый старт
 - **[Настройка окружения](ENVIRONMENT_SETUP.md)** - Полное руководство по настройке переменных окружения
 - **[Настройка CI/CD](CI_CD_SETUP.md)** - Инструкции по настройке автоматического деплоя
+- **[Настройка GitHub Secrets](GITHUB_SECRETS_SETUP.md)** - Настройка SSH ключей и секретов
 
 ### ⚙️ Конфигурация
 - **[Настройка GitHub Secrets](GITHUB_SECRETS_SETUP.md)** - Подробная инструкция по настройке секретов для CI/CD
@@ -14,8 +15,6 @@
 ### 📖 Дополнительная документация
 - **[Настройка проекта](SETUP.md)** - Общая настройка проекта
 - **[Развертывание](DEPLOYMENT.md)** - Инструкции по развертыванию
-- **[Устранение проблем с Puppeteer](PUPPETEER_TROUBLESHOOTING.md)** - Решение проблем с Chrome/Puppeteer
-- **[Устранение проблем с GitHub Actions](GITHUB_ACTIONS_TROUBLESHOOTING.md)** - Решение проблем с CI/CD
 
 ## 🎯 Для кого эта документация
 
@@ -68,7 +67,7 @@
 ## 🚀 CI/CD Pipeline
 
 ```
-GitHub → GitHub Actions → Арендованный сервер → VPN → Домашний сервер (Docker)
+GitHub → GitHub Actions → WireGuard VPN → Домашний сервер (Docker)
 ```
 
 ### Этапы деплоя:
@@ -99,9 +98,9 @@ GitHub → GitHub Actions → Арендованный сервер → VPN → 
 - Шифрование чувствительных данных
 
 ### Сетевая безопасность:
-- VPN между серверами
+- WireGuard VPN для подключения GitHub Actions к серверу
 - SSH ключи для аутентификации
-- Ограничение доступа по IP
+- Переменные окружения хранятся на сервере
 
 ## 🛠️ Устранение неполадок
 
@@ -111,7 +110,7 @@ GitHub → GitHub Actions → Арендованный сервер → VPN → 
 ```bash
 # Проверьте логи GitHub Actions
 # Проверьте логи на сервере
-tail -f /var/log/deployments/my-app.log
+tail -f ~/logs/deployments.log
 ```
 
 #### Проблемы с базой данных
@@ -130,6 +129,17 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe"
 
 # Проверьте webhook
 curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
+```
+
+#### Проблемы с SSH/WireGuard
+```bash
+# Проверьте SSH
+sudo systemctl status ssh
+grep "ssh-rsa" ~/.ssh/authorized_keys
+
+# Проверьте WireGuard
+sudo wg show
+sudo systemctl status wg-quick@wg0
 ```
 
 ## 📞 Поддержка

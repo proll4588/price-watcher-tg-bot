@@ -110,6 +110,11 @@ print_info "Пересобираем Docker образы..."
 docker-compose build --no-cache
 log "DEPLOY: Образы пересобраны"
 
+# Генерируем Prisma клиент
+print_info "Генерируем Prisma клиент..."
+docker-compose run --rm app npx prisma generate
+log "DEPLOY: Prisma клиент сгенерирован"
+
 # Применяем миграции БД
 print_info "Применяем миграции базы данных..."
 docker-compose run --rm app npx prisma migrate deploy
