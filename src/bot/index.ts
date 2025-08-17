@@ -254,6 +254,9 @@ class TelegramBot {
     if (url.includes("wildberries.ru") || url.includes("wildberries.com")) {
       return "wildberries";
     }
+    if (url.includes("market.yandex.ru") || url.includes("yandex.ru/market")) {
+      return "yandex_market";
+    }
     return "unknown";
   }
 
