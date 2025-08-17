@@ -38,6 +38,7 @@ services:
       - CHROME_BIN=/usr/bin/chromium-browser
       - PUPPETEER_SKIP_DOWNLOAD=true
       - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     depends_on:
       postgres:
         condition: service_healthy
