@@ -98,23 +98,63 @@ class QueueService {
    */
   async addRecurringPriceCheckJob(trackId: string, intervalHours: number): Promise<void> {
     try {
-      const pattern = `0 */${intervalHours} * * *`; // Cron pattern для каждые N часов
+      // Проверяем, не существует ли уже задача с таким jobId
+      const existingJobs = await this.priceCheckQueue.getRepeatableJobs();
+      const existingJob = existingJobs.find(job => job.id === `recurring-price-check-${trackId}`);
 
-      await this.priceCheckQueue.add(
-        "recurring-price-check",
-        { trackId },
-        {
-          repeat: {
-            pattern,
-          },
-          jobId: `recurring-price-check-${trackId}`,
-        }
-      );
+      if (existingJob) {
+        // Удаляем существующую задачу перед созданием новой
+        await this.priceCheckQueue.removeRepeatableByKey(existingJob.key);
+        queueLogger.info("Существующая повторяющаяся задача удалена перед созданием новой", {
+          trackId,
+          existingJobId: existingJob.id,
+        });
+      }
 
-      queueLogger.info("Повторяющаяся задача проверки цен добавлена", {
-        trackId,
-        intervalHours,
-      });
+      if (intervalHours >= 1) {
+        // Для интервалов >= 1 часа используем cron pattern
+        const pattern = `0 */${Math.floor(intervalHours)} * * *`;
+
+        await this.priceCheckQueue.add(
+          "recurring-price-check",
+          { trackId },
+          {
+            repeat: {
+              pattern,
+            },
+            jobId: `recurring-price-check-${trackId}`,
+          }
+        );
+
+        queueLogger.info("Повторяющаяся задача проверки цен добавлена (cron)", {
+          trackId,
+          intervalHours,
+          pattern,
+        });
+      } else {
+        // Для интервалов < 1 часа используем delay
+        const intervalMinutes = Math.round(intervalHours * 60);
+        const delay = intervalMinutes * 60 * 1000; // конвертируем в миллисекунды
+
+        await this.priceCheckQueue.add(
+          "recurring-price-check",
+          { trackId },
+          {
+            delay,
+            repeat: {
+              every: delay,
+            },
+            jobId: `recurring-price-check-${trackId}`,
+          }
+        );
+
+        queueLogger.info("Повторяющаяся задача проверки цен добавлена (delay)", {
+          trackId,
+          intervalHours,
+          intervalMinutes,
+          delay,
+        });
+      }
     } catch (error) {
       queueLogger.error("Ошибка при добавлении повторяющейся задачи", { trackId, error });
       throw error;
@@ -131,7 +171,9 @@ class QueueService {
 
       if (job) {
         await this.priceCheckQueue.removeRepeatableByKey(job.key);
-        queueLogger.info("Повторяющаяся задача удалена", { trackId });
+        queueLogger.info("Повторяющаяся задача удалена", { trackId, jobId: job.id });
+      } else {
+        queueLogger.warn("Повторяющаяся задача не найдена для удаления", { trackId });
       }
     } catch (error) {
       queueLogger.error("Ошибка при удалении повторяющейся задачи", { trackId, error });

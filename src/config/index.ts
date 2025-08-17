@@ -36,12 +36,14 @@ const configSchema = z.object({
     defaultIntervalHours: z
       .number()
       .positive()
+      .min(1 / 60) // Минимум 1 минута
       .default(5 / 60), // 5 минут для тестирования
     freeTierMaxProducts: z.number().int().positive().default(3),
     proTierMaxProducts: z.number().int().positive().default(50),
     proCheckIntervalHours: z
       .number()
       .positive()
+      .min(1 / 60) // Минимум 1 минута
       .default(5 / 60), // 5 минут для тестирования
   }),
 
