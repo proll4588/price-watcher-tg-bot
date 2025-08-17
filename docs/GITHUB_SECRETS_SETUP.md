@@ -82,100 +82,79 @@ chmod 600 ~/.ssh/authorized_keys
 
 ## Проверка настроек
 
-### Тест 1: GitHub Actions → Jump Server
+### Тест 1: GitHub Actions → Home Server
 
 **Где выполнять:** На локальном компьютере
-
-```bash
-# Тестируем подключение к jump server
-ssh -i ~/.ssh/github_actions_key user@jump-server-ip "echo 'Подключение к jump server успешно'"
-```
-
-### Тест 2: Jump Server → Home Server
-
-**Где выполнять:** На jump server
 
 ```bash
 # Тестируем подключение к home server
-ssh -i ~/.ssh/home_server_key user@home-server-ip "echo 'Подключение к home server успешно'"
+ssh -i ~/.ssh/github_actions_key user@home-server-ip "echo 'Подключение к home server успешно'"
 ```
 
-### Тест 3: Полная цепочка
+### Тест 2: Проверка .env файла
+
+**Где выполнять:** На home server
+
+```bash
+# Проверяем наличие .env файла
+ls -la .env
+
+# Проверяем содержимое .env (без показа секретов)
+head -5 .env
+```
+
+### Тест 3: Пошаговая диагностика
 
 **Где выполнять:** На локальном компьютере
 
 ```bash
-# Тестируем полную цепочку подключения
-ssh -J user@jump-server-ip user@home-server-ip "echo 'Полная цепочка работает'"
-```
+# 1. Тест подключения к home server
+ssh -i ~/.ssh/github_actions_key user@home-server-ip "echo 'Home server доступен'"
 
-### Тест 4: Пошаговая диагностика
-
-**Где выполнять:** На локальном компьютере
-
-```bash
-# 1. Тест подключения к jump server
-ssh -i ~/.ssh/github_actions_key user@jump-server-ip "echo 'Jump server доступен'"
-
-# 2. Тест подключения к home server через jump server
-ssh -J user@jump-server-ip user@home-server-ip "echo 'Home server доступен'"
-
-# 3. Подробная диагностика SSH
-ssh -v -J user@jump-server-ip user@home-server-ip "echo 'Диагностика завершена'"
+# 2. Подробная диагностика SSH
+ssh -v -i ~/.ssh/github_actions_key user@home-server-ip "echo 'Диагностика завершена'"
 ```
 
 ## Настройка остальных секретов
 
 ### Настройки приложения
 
-| Название | Пример значения | Описание |
-|----------|-----------------|----------|
-| `PORT` | `3000` | Порт приложения |
-| `LOG_LEVEL` | `info` | Уровень логирования |
+**Примечание:** Переменные окружения (.env) должны храниться на сервере, а не в GitHub Secrets.
 
-### База данных
+Для настройки переменных окружения на сервере:
+```bash
+# На home server
+cd /path/to/project
+cp env.example .env
+nano .env  # отредактируйте переменные
+```
 
-| Название | Пример значения | Описание |
-|----------|-----------------|----------|
-| `DATABASE_URL` | `postgresql://user:pass@localhost:5432/myapp` | Строка подключения к PostgreSQL |
-| `POSTGRES_DB` | `myapp` | Имя базы данных |
-| `POSTGRES_USER` | `postgres` | Пользователь PostgreSQL |
-| `POSTGRES_PASSWORD` | `your_password` | Пароль PostgreSQL |
-
-### Telegram Bot
-
-| Название | Пример значения | Описание |
-|----------|-----------------|----------|
-| `TELEGRAM_BOT_TOKEN` | `1234567890:ABCdefGHIjklMNOpqrsTUVwxyz` | Токен от @BotFather |
-| `TELEGRAM_WEBHOOK_URL` | `https://your-domain.com/webhook` | HTTPS URL для webhook |
-
-### Redis
-
-| Название | Пример значения | Описание |
-|----------|-----------------|----------|
-| `REDIS_URL` | `redis://localhost:6379` | URL подключения к Redis |
-
-### Мониторинг
-
-| Название | Пример значения | Описание |
-|----------|-----------------|----------|
-| `GRAFANA_ADMIN_PASSWORD` | `admin_password` | Пароль администратора Grafana |
-| `PROMETHEUS_PASSWORD` | `prometheus_password` | Пароль для Prometheus |
+Пример переменных в .env файле:
+```bash
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=postgresql://user:pass@localhost:5432/myapp
+POSTGRES_DB=myapp
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
+TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+TELEGRAM_WEBHOOK_URL=https://your-domain.com/webhook
+REDIS_URL=redis://localhost:6379
+GRAFANA_ADMIN_PASSWORD=admin_password
+PROMETHEUS_PASSWORD=prometheus_password
+LOG_LEVEL=info
+```
 
 ## Схема размещения SSH ключей
 
 ```
 Локальный компьютер:
 ├── ~/.ssh/github_actions_key (приватный) → GitHub Secrets
-└── ~/.ssh/github_actions_key.pub (публичный) → Jump Server
-
-Jump Server:
-├── ~/.ssh/authorized_keys (содержит github_actions_key.pub)
-├── ~/.ssh/home_server_key (приватный)
-└── ~/.ssh/home_server_key.pub (публичный) → Home Server
+└── ~/.ssh/github_actions_key.pub (публичный) → Home Server
 
 Home Server:
-└── ~/.ssh/authorized_keys (содержит home_server_key.pub)
+├── ~/.ssh/authorized_keys (содержит github_actions_key.pub)
+└── .env файл (переменные окружения)
 ```
 
 ## Частые ошибки и решения
@@ -243,32 +222,13 @@ ls -la ~/.ssh/id_rsa*
 
 ### Проверка SSH ключей на серверах
 
-**На jump server:**
-```bash
-# Запускаем диагностику
-./scripts/ssh-diagnostic.sh jump
-
-# Тестируем подключение к home server
-./scripts/ssh-diagnostic.sh jump user@home-server-ip
-
-# Или вручную:
-# Проверяем наличие ключа для home server
-ls -la ~/.ssh/home_server_key*
-
-# Проверяем права на ключ
-chmod 600 ~/.ssh/home_server_key
-
-# Тестируем подключение к home server
-ssh -i ~/.ssh/home_server_key user@home-server-ip "echo 'Подключение работает'"
-```
-
 **На home server:**
 ```bash
 # Запускаем диагностику
 ./scripts/ssh-diagnostic.sh home
 
 # Или вручную:
-# Проверяем, что ключ jump server добавлен
+# Проверяем, что ключ GitHub Actions добавлен
 grep "ssh-rsa" ~/.ssh/authorized_keys
 
 # Проверяем права на authorized_keys
@@ -276,6 +236,9 @@ chmod 600 ~/.ssh/authorized_keys
 
 # Проверяем SSH конфигурацию
 sudo systemctl status ssh
+
+# Проверяем .env файл
+ls -la .env
 ```
 
 ## Безопасность
@@ -304,42 +267,38 @@ sudo systemctl status ssh
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_key -N ""
 echo "Добавьте этот ключ в GitHub Secrets:"
 cat ~/.ssh/github_actions_key
-echo "Добавьте этот ключ на jump server:"
+echo "Добавьте этот ключ на home server:"
 cat ~/.ssh/github_actions_key.pub
 ```
 
-### 2. Jump Server
+### 2. Home Server
 
 ```bash
 # Добавляем ключ GitHub Actions
 echo "ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/authorized_keys
 
-# Создаем ключ для home server
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/home_server_key -N ""
-echo "Добавьте этот ключ на home server:"
-cat ~/.ssh/home_server_key.pub
-```
-
-### 3. Home Server
-
-```bash
-# Добавляем ключ jump server
-echo "ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/authorized_keys
-
 # Проверяем права
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/authorized_keys
+
+# Настраиваем переменные окружения
+cd /path/to/project
+cp env.example .env
+nano .env  # отредактируйте переменные
 ```
 
-### 4. GitHub Secrets
+### 3. GitHub Secrets
 
-Добавьте все необходимые секреты в GitHub репозиторий.
+Добавьте только необходимые секреты в GitHub репозиторий:
+- `SSH_PRIVATE_KEY` - приватный ключ GitHub Actions
+- `HOME_SERVER_USER` - пользователь на home server
+- `PROJECT_PATH` - путь к проекту
 
-### 5. Тестирование
+### 4. Тестирование
 
 ```bash
-# Тест полной цепочки
-ssh -J user@jump-server-ip user@home-server-ip "echo 'Все работает!'"
+# Тест подключения
+ssh user@home-server-ip "echo 'Все работает!'"
 ```
 
 ## Поддержка

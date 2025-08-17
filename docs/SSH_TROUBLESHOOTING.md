@@ -136,39 +136,33 @@ echo "home-server-ip ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/known_hosts
 
 ### Подробная диагностика SSH
 ```bash
-# На jump server
-ssh -v -i ~/.ssh/home_server_key user@home-server-ip
+# На локальном компьютере
+ssh -v -i ~/.ssh/github_actions_key user@home-server-ip
 
-# Через ProxyJump
-ssh -v -J user@jump-server-ip user@home-server-ip
+# Через GitHub Actions
+ssh -v user@home-server-ip
 ```
 
 ### Проверка SSH конфигурации
 ```bash
-# На jump server
-sudo cat /etc/ssh/sshd_config | grep -E "(Port|PermitRootLogin|PubkeyAuthentication)"
-
 # На home server
 sudo cat /etc/ssh/sshd_config | grep -E "(Port|PermitRootLogin|PubkeyAuthentication)"
 ```
 
 ### Проверка логов SSH
 ```bash
-# На jump server
-sudo journalctl -u ssh -f
-
 # На home server
 sudo journalctl -u ssh -f
 ```
 
 ## Проверка прав доступа
 
-### На jump server
+### На локальном компьютере
 ```bash
 ls -la ~/.ssh/
 chmod 700 ~/.ssh
-chmod 600 ~/.ssh/home_server_key
-chmod 644 ~/.ssh/home_server_key.pub
+chmod 600 ~/.ssh/github_actions_key
+chmod 644 ~/.ssh/github_actions_key.pub
 ```
 
 ### На home server
@@ -180,12 +174,12 @@ chmod 600 ~/.ssh/authorized_keys
 
 ## Создание новых SSH ключей
 
-### Если нужно пересоздать ключи на jump server
+### Если нужно пересоздать ключи GitHub Actions
 ```bash
-# На jump server
-rm ~/.ssh/home_server_key*
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/home_server_key -N ""
-cat ~/.ssh/home_server_key.pub
+# На локальном компьютере
+rm ~/.ssh/github_actions_key*
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_key -N ""
+cat ~/.ssh/github_actions_key.pub
 ```
 
 ### Добавление ключа на home server
@@ -199,7 +193,7 @@ chmod 600 ~/.ssh/authorized_keys
 
 ### С локального компьютера
 ```bash
-ssh -J user@jump-server-ip user@home-server-ip "echo 'Полная цепочка работает'"
+ssh user@home-server-ip "echo 'Подключение работает'"
 ```
 
 ### Через GitHub Actions
