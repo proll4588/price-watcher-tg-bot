@@ -149,10 +149,13 @@ export class WildberriesProvider extends BaseProvider {
           // Извлекаем данные с учетом всех типов цен
           const productData = await page.evaluate(() => {
             // @ts-ignore - document доступен в контексте браузера
+            // eslint-disable-next-line no-undef
             const h1Element = document.querySelector("h1");
             // @ts-ignore
+            // eslint-disable-next-line no-undef
             const titleElement = document.querySelector(".product-page__title");
             // @ts-ignore
+            // eslint-disable-next-line no-undef
             const pageTitle = document.title;
 
             const title =
@@ -160,18 +163,21 @@ export class WildberriesProvider extends BaseProvider {
 
             // 1. Цена по карте WB (приоритетная)
             // @ts-ignore
+            // eslint-disable-next-line no-undef
             const walletPriceElement = document.querySelector(".price-block__wallet-price");
             // @ts-ignore
             const walletPrice = walletPriceElement?.textContent?.trim();
 
             // 2. Цена без карты (основная цена)
             // @ts-ignore
+            // eslint-disable-next-line no-undef
             const finalPriceElement = document.querySelector(".price-block__final-price");
             // @ts-ignore
             const finalPrice = finalPriceElement?.textContent?.trim();
 
             // 3. Старая цена (зачеркнутая)
             // @ts-ignore
+            // eslint-disable-next-line no-undef
             const oldPriceElement = document.querySelector(".price-block__old-price");
             // @ts-ignore
             const oldPrice = oldPriceElement?.textContent?.trim();
@@ -180,8 +186,10 @@ export class WildberriesProvider extends BaseProvider {
             // @ts-ignore
             const fallbackPriceElement =
               // @ts-ignore
+              // eslint-disable-next-line no-undef
               document.querySelector(".price-block__price") ||
               // @ts-ignore
+              // eslint-disable-next-line no-undef
               document.querySelector("[data-price]");
             // @ts-ignore
             const fallbackPrice =
@@ -195,8 +203,10 @@ export class WildberriesProvider extends BaseProvider {
             // @ts-ignore
             const imageElement =
               // @ts-ignore
+              // eslint-disable-next-line no-undef
               document.querySelector(".zoom-image-container img") ||
               // @ts-ignore
+              // eslint-disable-next-line no-undef
               document.querySelector(".photo-zoom__preview img");
             // @ts-ignore
             const imageUrl =

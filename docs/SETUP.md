@@ -140,7 +140,7 @@ curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
 
 1. Найдите вашего бота в Telegram
 2. Отправьте команду `/start`
-3. Отправьте ссылку на товар с Ozon или Wildberries
+3. Отправьте ссылку на товар с Wildberries
 
 ## 📊 Мониторинг
 

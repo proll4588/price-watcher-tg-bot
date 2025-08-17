@@ -1,6 +1,5 @@
 import { BaseProvider } from "./base";
 import { WildberriesProvider } from "./wildberries";
-import { OzonProvider } from "./ozon";
 import { ProviderResult } from "../types";
 import { providerLogger } from "../utils/logger";
 
@@ -16,11 +15,6 @@ export class ProviderManager {
     const wildberriesProvider = new WildberriesProvider();
     this.providers.set("wildberries", wildberriesProvider);
     providerLogger.info("Wildberries Puppeteer провайдер инициализирован");
-
-    // Ozon провайдер
-    const ozonProvider = new OzonProvider();
-    this.providers.set("ozon", ozonProvider);
-    providerLogger.info("Ozon провайдер инициализирован");
 
     providerLogger.info(`Инициализировано провайдеров: ${this.providers.size}`);
   }
@@ -47,7 +41,7 @@ export class ProviderManager {
       return {
         success: false,
         error:
-          "Неподдерживаемый маркетплейс. Поддерживается: Wildberries, Ozon",
+          "Неподдерживаемый маркетплейс. Поддерживается: Wildberries",
       };
     }
 

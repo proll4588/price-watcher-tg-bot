@@ -17,7 +17,7 @@ export async function listCommand(ctx: Context): Promise<void> {
     if (tracks.length === 0) {
       await ctx.reply(
         "📝 У вас пока нет отслеживаемых товаров.\n\n" +
-          "Отправьте ссылку на товар с Ozon или Wildberries, чтобы начать отслеживание!"
+          "Отправьте ссылку на товар с Wildberries, чтобы начать отслеживание!"
       );
       return;
     }
@@ -90,8 +90,6 @@ export async function listCommand(ctx: Context): Promise<void> {
 
 function getProviderDisplayName(provider: string): string {
   switch (provider) {
-    case "ozon":
-      return "Ozon";
     case "wildberries":
       return "Wildberries";
     case "yandex_market":

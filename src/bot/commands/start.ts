@@ -20,7 +20,7 @@ export async function startCommand(ctx: ExtendedContext): Promise<void> {
     const welcomeMessage =
       `👋 Привет! Я Price Watcher - бот для отслеживания цен на товары.\n\n` +
       `🎯 Как это работает:\n` +
-      `• Отправьте ссылку на товар с Ozon или Wildberries\n` +
+              `• Отправьте ссылку на товар с Wildberries\n` +
       `• Я буду проверять цену каждые ${user.subscriptionTier === "PRO" ? (config.priceCheck.proCheckIntervalHours < 1 ? Math.round(config.priceCheck.proCheckIntervalHours * 60) + " минут" : config.priceCheck.proCheckIntervalHours + " часов") : config.priceCheck.defaultIntervalHours < 1 ? Math.round(config.priceCheck.defaultIntervalHours * 60) + " минут" : config.priceCheck.defaultIntervalHours + " часов"}\n` +
       `• При снижении цены вы получите уведомление\n\n` +
       `📊 Ваша статистика:\n` +
