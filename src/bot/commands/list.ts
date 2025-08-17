@@ -17,7 +17,7 @@ export async function listCommand(ctx: Context): Promise<void> {
     if (tracks.length === 0) {
       await ctx.reply(
         "📝 У вас пока нет отслеживаемых товаров.\n\n" +
-          "Отправьте ссылку на товар с Wildberries, чтобы начать отслеживание!"
+          "Отправьте ссылку на товар с Wildberries или Яндекс.Маркета, чтобы начать отслеживание!"
       );
       return;
     }
