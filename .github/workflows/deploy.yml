@@ -50,30 +50,6 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Test VPN connection
-        run: |
-          echo "🔍 Тестируем VPN подключение..."
-
-          # Проверяем доступность home server через VPN
-          echo "1️⃣ Проверяем доступность home server через VPN..."
-          ping -c 3 ${{ secrets.HOME_SERVER_VPN_IP }} || {
-            echo "❌ Не удалось подключиться к home server через VPN"
-            echo "🔍 Проверьте:"
-            echo "   - WireGuard конфигурацию в GitHub Secrets"
-            echo "   - VPN IP адрес home server"
-            echo "   - Статус WireGuard на home server"
-            exit 1
-          }
-
-          echo "2️⃣ Тестируем SSH подключение через VPN..."
-          ssh -T -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_VPN_IP }} "echo '✅ SSH подключение через VPN работает'" || {
-            echo "❌ Не удалось подключиться по SSH через VPN"
-            echo "🔍 Проверьте SSH ключи и настройки"
-            exit 1
-          }
-
-          echo "✅ VPN подключение работает!"
-
       - name: Deploy to home server
         run: |
           echo "🚀 Подключаемся к домашнему серверу через VPN и запускаем деплой..."
