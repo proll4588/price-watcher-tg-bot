@@ -109,6 +109,21 @@ ssh -i ~/.ssh/home_server_key user@home-server-ip "echo 'Подключение 
 ssh -J user@jump-server-ip user@home-server-ip "echo 'Полная цепочка работает'"
 ```
 
+### Тест 4: Пошаговая диагностика
+
+**Где выполнять:** На локальном компьютере
+
+```bash
+# 1. Тест подключения к jump server
+ssh -i ~/.ssh/github_actions_key user@jump-server-ip "echo 'Jump server доступен'"
+
+# 2. Тест подключения к home server через jump server
+ssh -J user@jump-server-ip user@home-server-ip "echo 'Home server доступен'"
+
+# 3. Подробная диагностика SSH
+ssh -v -J user@jump-server-ip user@home-server-ip "echo 'Диагностика завершена'"
+```
+
 ## Настройка остальных секретов
 
 ### Настройки приложения
@@ -191,6 +206,16 @@ Home Server:
 2. Проверьте SSH порт: `nc -zv server-ip 22`
 3. Проверьте firewall на серверах
 
+### Ошибка: "Host key verification failed"
+
+**Причина:** SSH ключи не настроены правильно или jump server не может подключиться к home server
+
+**Решение:**
+1. Проверьте, что SSH ключ jump server добавлен в `~/.ssh/authorized_keys` на home server
+2. Проверьте права на SSH ключи: `chmod 600 ~/.ssh/home_server_key`
+3. Проверьте права на authorized_keys: `chmod 600 ~/.ssh/authorized_keys`
+4. Проверьте подключение с jump server к home server напрямую
+
 ## Команды для диагностики
 
 ### Проверка SSH конфигурации
@@ -214,6 +239,32 @@ ls -la ~/.ssh/
 
 # Проверка прав на ключи
 ls -la ~/.ssh/id_rsa*
+```
+
+### Проверка SSH ключей на серверах
+
+**На jump server:**
+```bash
+# Проверяем наличие ключа для home server
+ls -la ~/.ssh/home_server_key*
+
+# Проверяем права на ключ
+chmod 600 ~/.ssh/home_server_key
+
+# Тестируем подключение к home server
+ssh -i ~/.ssh/home_server_key user@home-server-ip "echo 'Подключение работает'"
+```
+
+**На home server:**
+```bash
+# Проверяем, что ключ jump server добавлен
+grep "ssh-rsa" ~/.ssh/authorized_keys
+
+# Проверяем права на authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+
+# Проверяем SSH конфигурацию
+sudo systemctl status ssh
 ```
 
 ## Безопасность

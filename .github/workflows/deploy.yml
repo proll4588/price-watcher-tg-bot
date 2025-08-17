@@ -27,16 +27,29 @@ jobs:
           ssh-keyscan -H ${{ secrets.JUMP_SERVER_HOST }} >> ~/.ssh/known_hosts || echo "Warning: Could not scan jump server"
           ssh-keyscan -H ${{ secrets.HOME_SERVER_IP }} >> ~/.ssh/known_hosts || echo "Warning: Could not scan home server"
 
-                      chmod 600 ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
-      - name: Test SSH connection
+      - name: Test SSH connection step by step
         run: |
-          echo "Testing SSH connection to home server through jump server..."
-          ssh -T -o ConnectTimeout=10 -o BatchMode=yes -J ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} "echo 'SSH connection to home server successful'" || {
-            echo "❌ Failed to connect to home server through jump server"
+          echo "🔍 Тестируем подключение пошагово..."
+
+          echo "1️⃣ Тестируем подключение к jump server..."
+          ssh -T -o ConnectTimeout=10 -o BatchMode=yes ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} "echo '✅ Подключение к jump server успешно'" || {
+            echo "❌ Не удалось подключиться к jump server"
             exit 1
           }
-          echo "✅ SSH connection to home server successful"
+
+          echo "2️⃣ Тестируем подключение к home server через jump server..."
+          ssh -T -o ConnectTimeout=10 -o BatchMode=yes -J ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} "echo '✅ Подключение к home server успешно'" || {
+            echo "❌ Не удалось подключиться к home server через jump server"
+            echo "🔍 Возможные причины:"
+            echo "   - SSH ключ jump server не добавлен в authorized_keys на home server"
+            echo "   - Неправильные права доступа на SSH ключи"
+            echo "   - Проблемы с сетевым подключением"
+            exit 1
+          }
+
+          echo "✅ Все подключения работают!"
 
       - name: Deploy to home server
         run: |
