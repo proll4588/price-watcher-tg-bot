@@ -1,87 +1,98 @@
 # 🚀 Быстрый старт
 
-## Минимальная настройка для запуска
+## Минимальная настройка
 
-### 1. Клонирование
+### 1. Клонируйте репозиторий
 
 ```bash
 git clone <your-repo-url>
 cd my-app
 ```
 
-### 2. Настройка окружения
+### 2. Настройте окружение
 
 ```bash
 # Автоматическая настройка
 ./scripts/setup-env.sh
 
-# Или ручная настройка
+# Или вручную
 cp env.example .env
 # Отредактируйте .env файл
 ```
 
-### 3. Запуск с Docker
+### 3. Запустите проект
 
 ```bash
 docker-compose up -d
 ```
 
-### 4. Проверка работы
+### 4. Проверьте работу
 
 ```bash
-# Health check
-curl http://localhost:3000/health
+# Статус контейнеров
+docker-compose ps
 
-# Просмотр логов
-docker-compose logs -f
-```
-
-## 📚 Документация
-
-- **[📚 Полная документация](docs/README.md)** - Все инструкции и руководства
-- **[⚙️ Настройка окружения](docs/ENVIRONMENT_SETUP.md)** - Переменные окружения
-- **[🚀 Настройка CI/CD](docs/CI_CD_SETUP.md)** - Автоматический деплой
-- **[🔐 GitHub Secrets](docs/GITHUB_SECRETS_SETUP.md)** - Настройка секретов
-
-## 🛠️ Полезные команды
-
-```bash
-# Запуск/остановка
-docker-compose up -d
-docker-compose down
-
-# Логи
+# Логи приложения
 docker-compose logs -f app
+```
 
-# Перезапуск
-docker-compose restart
+## CI/CD настройка
 
-# Обновление кода
-git pull && docker-compose up -d --build
+### 1. Настройте SSH ключи
 
-# Создание тега для деплоя
+Следуйте пошаговой инструкции: [🔐 Настройка GitHub Secrets](docs/GITHUB_SECRETS_SETUP.md)
+
+**Кратко:**
+
+- Создайте SSH ключ на локальном компьютере
+- Добавьте публичный ключ на jump server
+- Создайте SSH ключ на jump server
+- Добавьте публичный ключ на home server
+- Добавьте приватный ключ в GitHub Secrets
+
+### 2. Настройте GitHub Secrets
+
+Добавьте все необходимые секреты в GitHub репозиторий (см. [документацию](docs/GITHUB_SECRETS_SETUP.md))
+
+### 3. Создайте тег для деплоя
+
+```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-## 🔧 Устранение проблем
-
-### Ошибка Puppeteer/Chrome
-
-Если возникает ошибка при сборке Docker образа:
+## Полезные команды
 
 ```bash
-# Используйте альтернативный Dockerfile с Chrome
-docker-compose -f docker-compose.chrome.yml up -d
+# Остановить все контейнеры
+docker-compose down
 
-# Или проверьте переменные окружения
-docker-compose config
+# Пересобрать образы
+docker-compose build --no-cache
+
+# Посмотреть логи
+docker-compose logs -f [service-name]
+
+# Подключиться к контейнеру
+docker-compose exec [service-name] bash
+
+# Проверить статус
+docker-compose ps
 ```
 
-Подробнее: [Устранение проблем с Puppeteer](docs/PUPPETEER_TROUBLESHOOTING.md)
+## Troubleshooting
 
-## 🆘 Поддержка
+### Проблемы с Puppeteer
 
-- Создайте Issue в репозитории
-- Обратитесь в Telegram: @support_username
-- Проверьте [документацию](docs/README.md)
+Если возникают ошибки с Chrome, см. [🐛 Troubleshooting Puppeteer](docs/PUPPETEER_TROUBLESHOOTING.md)
+
+### Проблемы с CI/CD
+
+Если деплой не работает, см. [🔧 Troubleshooting GitHub Actions](docs/GITHUB_ACTIONS_TROUBLESHOOTING.md)
+
+## Документация
+
+- 📚 [Полная документация](docs/README.md)
+- 🔐 [Настройка SSH ключей](docs/GITHUB_SECRETS_SETUP.md)
+- 🚀 [Настройка CI/CD](docs/CI_CD_SETUP.md)
+- ⚙️ [Настройка окружения](docs/ENVIRONMENT_SETUP.md)

@@ -31,21 +31,22 @@ jobs:
 
       - name: Test SSH connection
         run: |
-          echo "Testing SSH connection to home server..."
-          ssh -T -o ConnectTimeout=10 -o BatchMode=yes ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} "echo 'SSH connection to home server successful'" || {
-            echo "❌ Failed to connect to home server"
+          echo "Testing SSH connection to home server through jump server..."
+          ssh -T -o ConnectTimeout=10 -o BatchMode=yes -J ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} "echo 'SSH connection to home server successful'" || {
+            echo "❌ Failed to connect to home server through jump server"
             exit 1
           }
           echo "✅ SSH connection to home server successful"
 
       - name: Deploy to home server
         run: |
-          echo "🚀 Подключаемся к домашнему серверу и запускаем деплой..."
+          echo "🚀 Подключаемся к домашнему серверу через jump server и запускаем деплой..."
 
-          # Подключаемся к домашнему серверу и запускаем скрипт деплоя
+          # Подключаемся к домашнему серверу через jump server и запускаем скрипт деплоя
           ssh -T -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
               -o ConnectTimeout=10 \
+              -J ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} \
               ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} << 'EOF'
             set -e
             

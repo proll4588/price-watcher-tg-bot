@@ -2,297 +2,290 @@
 
 ## Обзор
 
-Для работы CI/CD pipeline необходимо настроить секреты в GitHub репозитории. Эти секреты содержат конфиденциальную информацию и не должны попадать в код.
+Для работы CI/CD pipeline необходимо настроить SSH ключи и секреты. Эта инструкция пошагово объясняет, где и что делать.
 
-## Настройка секретов
+## Архитектура подключения
 
-### 1. Перейдите в настройки репозитория
+```
+GitHub Actions → Jump Server (арендованный) → Home Server (домашний)
+```
+
+## Пошаговая настройка SSH ключей
+
+### Шаг 1: Создание SSH ключа для GitHub Actions
+
+**Где выполнять:** На вашем локальном компьютере
+
+```bash
+# Создаем SSH ключ для GitHub Actions
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_key -N ""
+
+# Показываем публичный ключ (добавим на jump server)
+cat ~/.ssh/github_actions_key.pub
+
+# Показываем приватный ключ (добавим в GitHub Secrets)
+cat ~/.ssh/github_actions_key
+```
+
+### Шаг 2: Настройка Jump Server (арендованный сервер)
+
+**Где выполнять:** На арендованном сервере
+
+```bash
+# Подключаемся к арендованному серверу
+ssh user@jump-server-ip
+
+# Добавляем публичный ключ GitHub Actions
+echo "ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/authorized_keys
+
+# Создаем SSH ключ для подключения к домашнему серверу
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/home_server_key -N ""
+
+# Показываем публичный ключ (добавим на home server)
+cat ~/.ssh/home_server_key.pub
+```
+
+### Шаг 3: Настройка Home Server (домашний сервер)
+
+**Где выполнять:** На домашнем сервере
+
+```bash
+# Подключаемся к домашнему серверу
+ssh user@home-server-ip
+
+# Добавляем публичный ключ jump server
+echo "ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/authorized_keys
+
+# Проверяем права на .ssh
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+```
+
+### Шаг 4: Настройка GitHub Secrets
+
+**Где выполнять:** В веб-интерфейсе GitHub
 
 1. Откройте ваш GitHub репозиторий
 2. Перейдите в `Settings` → `Secrets and variables` → `Actions`
 3. Нажмите `New repository secret`
 
-### 2. Добавьте следующие секреты
+#### Добавьте следующие секреты:
 
-#### SSH подключение к арендованному серверу
-
-```
-SSH_PRIVATE_KEY
-```
-
-**Значение:** Приватный SSH ключ для подключения к арендованному серверу
-
-#### Настройки арендованного сервера (Jump Server)
-
-```
-JUMP_SERVER_HOST
-```
-
-**Значение:** IP адрес или домен арендованного сервера
-
-```
-JUMP_SERVER_USER
-```
-
-**Значение:** Пользователь для SSH подключения к арендованному серверу
-
-#### Настройки домашнего сервера
-
-```
-HOME_SERVER_IP
-```
-
-**Значение:** IP адрес домашнего сервера в VPN сети
-
-```
-HOME_SERVER_USER
-```
-
-**Значение:** Пользователь для SSH подключения к домашнему серверу
-
-```
-PROJECT_PATH
-```
-
-**Значение:** Полный путь к проекту на домашнем сервере (например: `/home/deploy/projects/my-app`)
-
-#### Настройки приложения
-
-```
-PORT
-```
-
-**Значение:** Порт приложения (например: `3000`)
-
-```
-LOG_LEVEL
-```
-
-**Значение:** Уровень логирования (например: `info`)
-
-#### База данных
-
-```
-DATABASE_URL
-```
-
-**Значение:** Полная строка подключения к PostgreSQL
-
-```
-postgresql://username:password@host:port/database
-```
-
-```
-POSTGRES_DB
-```
-
-**Значение:** Имя базы данных
-
-```
-POSTGRES_USER
-```
-
-**Значение:** Пользователь PostgreSQL
-
-```
-POSTGRES_PASSWORD
-```
-
-**Значение:** Пароль PostgreSQL
-
-#### Telegram Bot
-
-```
-TELEGRAM_BOT_TOKEN
-```
-
-**Значение:** Токен бота от @BotFather
-
-```
-TELEGRAM_WEBHOOK_URL
-```
-
-**Значение:** URL для webhook (должен быть HTTPS)
-
-```
-https://your-domain.com/webhook
-```
-
-#### Redis
-
-```
-REDIS_URL
-```
-
-**Значение:** URL подключения к Redis
-
-```
-redis://host:port
-```
-
-#### Мониторинг
-
-```
-GRAFANA_ADMIN_PASSWORD
-```
-
-**Значение:** Пароль администратора Grafana
-
-```
-PROMETHEUS_PASSWORD
-```
-
-**Значение:** Пароль для Prometheus
-
-## Генерация SSH ключей
-
-### 1. Создание SSH ключа для GitHub Actions
-
-```bash
-# Генерируем новый SSH ключ
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_key -N ""
-
-# Показываем публичный ключ для добавления на сервер
-cat ~/.ssh/github_actions_key.pub
-
-# Показываем приватный ключ для GitHub Secrets
-cat ~/.ssh/github_actions_key
-```
-
-### 2. Настройка на арендованном сервере
-
-```bash
-# Добавляем публичный ключ GitHub Actions
-echo "ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/authorized_keys
-
-# Создаем пользователя deploy (если нужно)
-sudo adduser deploy
-sudo usermod -aG sudo deploy
-
-# Настраиваем SSH ключи для домашнего сервера
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/home_server_key -N ""
-cat ~/.ssh/home_server_key.pub
-```
-
-### 3. Настройка на домашнем сервере
-
-```bash
-# Добавляем публичный ключ арендованного сервера
-echo "ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/authorized_keys
-
-# Создаем пользователя deploy (если нужно)
-sudo adduser deploy
-sudo usermod -aG docker deploy
-```
+| Название | Значение | Откуда взять |
+|----------|----------|--------------|
+| `SSH_PRIVATE_KEY` | Приватный ключ GitHub Actions | Результат `cat ~/.ssh/github_actions_key` с локального компьютера |
+| `JUMP_SERVER_HOST` | IP арендованного сервера | IP адрес вашего арендованного сервера |
+| `JUMP_SERVER_USER` | Пользователь на jump server | Ваш пользователь на арендованном сервере |
+| `HOME_SERVER_IP` | IP домашнего сервера | IP адрес вашего домашнего сервера в VPN |
+| `HOME_SERVER_USER` | Пользователь на home server | Ваш пользователь на домашнем сервере |
+| `PROJECT_PATH` | Путь к проекту | Полный путь к проекту на домашнем сервере |
 
 ## Проверка настроек
 
-### 1. Тест SSH подключения
+### Тест 1: GitHub Actions → Jump Server
+
+**Где выполнять:** На локальном компьютере
 
 ```bash
-# Тест подключения к арендованному серверу
-ssh -i ~/.ssh/github_actions_key user@jump-server-ip
-
-# Тест подключения к домашнему серверу через арендованный
-ssh user@jump-server-ip "ssh user@home-server-ip 'echo test'"
+# Тестируем подключение к jump server
+ssh -i ~/.ssh/github_actions_key user@jump-server-ip "echo 'Подключение к jump server успешно'"
 ```
 
-### 2. Тест переменных окружения
+### Тест 2: Jump Server → Home Server
+
+**Где выполнять:** На jump server
 
 ```bash
-# Тест подключения к базе данных
-psql $DATABASE_URL -c "SELECT version();"
+# Тестируем подключение к home server
+ssh -i ~/.ssh/home_server_key user@home-server-ip "echo 'Подключение к home server успешно'"
+```
 
-# Тест Telegram Bot
-curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe"
+### Тест 3: Полная цепочка
 
-# Тест Redis
-redis-cli -u $REDIS_URL ping
+**Где выполнять:** На локальном компьютере
+
+```bash
+# Тестируем полную цепочку подключения
+ssh -J user@jump-server-ip user@home-server-ip "echo 'Полная цепочка работает'"
+```
+
+## Настройка остальных секретов
+
+### Настройки приложения
+
+| Название | Пример значения | Описание |
+|----------|-----------------|----------|
+| `PORT` | `3000` | Порт приложения |
+| `LOG_LEVEL` | `info` | Уровень логирования |
+
+### База данных
+
+| Название | Пример значения | Описание |
+|----------|-----------------|----------|
+| `DATABASE_URL` | `postgresql://user:pass@localhost:5432/myapp` | Строка подключения к PostgreSQL |
+| `POSTGRES_DB` | `myapp` | Имя базы данных |
+| `POSTGRES_USER` | `postgres` | Пользователь PostgreSQL |
+| `POSTGRES_PASSWORD` | `your_password` | Пароль PostgreSQL |
+
+### Telegram Bot
+
+| Название | Пример значения | Описание |
+|----------|-----------------|----------|
+| `TELEGRAM_BOT_TOKEN` | `1234567890:ABCdefGHIjklMNOpqrsTUVwxyz` | Токен от @BotFather |
+| `TELEGRAM_WEBHOOK_URL` | `https://your-domain.com/webhook` | HTTPS URL для webhook |
+
+### Redis
+
+| Название | Пример значения | Описание |
+|----------|-----------------|----------|
+| `REDIS_URL` | `redis://localhost:6379` | URL подключения к Redis |
+
+### Мониторинг
+
+| Название | Пример значения | Описание |
+|----------|-----------------|----------|
+| `GRAFANA_ADMIN_PASSWORD` | `admin_password` | Пароль администратора Grafana |
+| `PROMETHEUS_PASSWORD` | `prometheus_password` | Пароль для Prometheus |
+
+## Схема размещения SSH ключей
+
+```
+Локальный компьютер:
+├── ~/.ssh/github_actions_key (приватный) → GitHub Secrets
+└── ~/.ssh/github_actions_key.pub (публичный) → Jump Server
+
+Jump Server:
+├── ~/.ssh/authorized_keys (содержит github_actions_key.pub)
+├── ~/.ssh/home_server_key (приватный)
+└── ~/.ssh/home_server_key.pub (публичный) → Home Server
+
+Home Server:
+└── ~/.ssh/authorized_keys (содержит home_server_key.pub)
+```
+
+## Частые ошибки и решения
+
+### Ошибка: "Permission denied (publickey)"
+
+**Причина:** Неправильно размещен публичный ключ
+
+**Решение:**
+1. Проверьте, что публичный ключ добавлен в `~/.ssh/authorized_keys`
+2. Проверьте права: `chmod 600 ~/.ssh/authorized_keys`
+3. Проверьте права на .ssh: `chmod 700 ~/.ssh`
+
+### Ошибка: "Could not scan home server"
+
+**Причина:** GitHub Actions не может подключиться к home server напрямую
+
+**Решение:**
+1. Убедитесь, что используется SSH ProxyJump (`-J` флаг)
+2. Проверьте, что jump server может подключиться к home server
+
+### Ошибка: "Connection timeout"
+
+**Причина:** Проблемы с сетевым подключением
+
+**Решение:**
+1. Проверьте доступность серверов: `ping server-ip`
+2. Проверьте SSH порт: `nc -zv server-ip 22`
+3. Проверьте firewall на серверах
+
+## Команды для диагностики
+
+### Проверка SSH конфигурации
+
+```bash
+# Подробный вывод SSH подключения
+ssh -v -J user@jump-server-ip user@home-server-ip
+
+# Проверка SSH агента
+ssh-add -l
+
+# Проверка известных хостов
+cat ~/.ssh/known_hosts
+```
+
+### Проверка прав доступа
+
+```bash
+# Проверка прав на SSH директорию
+ls -la ~/.ssh/
+
+# Проверка прав на ключи
+ls -la ~/.ssh/id_rsa*
 ```
 
 ## Безопасность
 
 ### ✅ Рекомендации
 
-- Используйте сложные пароли
-- Регулярно обновляйте SSH ключи
-- Ограничивайте доступ к серверам по IP
+- Используйте разные SSH ключи для разных сервисов
+- Регулярно обновляйте SSH ключи (раз в 6 месяцев)
+- Ограничивайте доступ по IP в firewall
 - Используйте VPN для дополнительной защиты
-- Ведите логи всех подключений
+- Ведите логи SSH подключений
 
 ### ❌ Что НЕ делать
 
-- Не коммитьте секреты в код
-- Не используйте простые пароли
+- Не используйте один SSH ключ для всего
+- Не коммитьте приватные ключи в Git
 - Не передавайте ключи в открытом виде
 - Не давайте доступ посторонним
 
-## Устранение неполадок
-
-### Ошибка SSH подключения
-
-```bash
-# Проверьте права на ключи
-chmod 600 ~/.ssh/id_rsa
-chmod 644 ~/.ssh/id_rsa.pub
-
-# Проверьте SSH конфигурацию
-ssh -v user@server-ip
-```
-
-### Ошибка переменных окружения
-
-```bash
-# Проверьте синтаксис DATABASE_URL
-echo $DATABASE_URL
-
-# Проверьте доступность сервисов
-nc -zv host port
-```
-
-### Ошибка Docker
-
-```bash
-# Проверьте права пользователя
-sudo usermod -aG docker $USER
-
-# Проверьте статус Docker
-sudo systemctl status docker
-```
-
 ## Пример полной настройки
 
-### 1. Создание всех секретов
+### 1. Локальный компьютер
 
 ```bash
-# Скопируйте и вставьте в GitHub Secrets
-SSH_PRIVATE_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
-...
------END OPENSSH PRIVATE KEY-----"
-
-JUMP_SERVER_HOST="123.456.789.10"
-JUMP_SERVER_USER="deploy"
-HOME_SERVER_IP="192.168.1.100"
-HOME_SERVER_USER="deploy"
-PROJECT_PATH="/home/deploy/projects/my-app"
-PORT="3000"
-DATABASE_URL="postgresql://user:pass@localhost:5432/myapp"
-TELEGRAM_BOT_TOKEN="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
+# Создаем ключ для GitHub Actions
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_key -N ""
+echo "Добавьте этот ключ в GitHub Secrets:"
+cat ~/.ssh/github_actions_key
+echo "Добавьте этот ключ на jump server:"
+cat ~/.ssh/github_actions_key.pub
 ```
 
-### 2. Тестирование pipeline
+### 2. Jump Server
 
-1. Сделайте push в main ветку
-2. Проверьте статус в GitHub Actions
-3. Убедитесь, что деплой прошел успешно
-4. Проверьте работу приложения
+```bash
+# Добавляем ключ GitHub Actions
+echo "ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/authorized_keys
+
+# Создаем ключ для home server
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/home_server_key -N ""
+echo "Добавьте этот ключ на home server:"
+cat ~/.ssh/home_server_key.pub
+```
+
+### 3. Home Server
+
+```bash
+# Добавляем ключ jump server
+echo "ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/authorized_keys
+
+# Проверяем права
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+```
+
+### 4. GitHub Secrets
+
+Добавьте все необходимые секреты в GitHub репозиторий.
+
+### 5. Тестирование
+
+```bash
+# Тест полной цепочки
+ssh -J user@jump-server-ip user@home-server-ip "echo 'Все работает!'"
+```
 
 ## Поддержка
 
 При возникновении проблем:
 
 1. Проверьте логи GitHub Actions
-2. Убедитесь, что все секреты настроены правильно
-3. Проверьте SSH подключения
-4. Проверьте доступность всех сервисов
+2. Убедитесь, что все SSH ключи размещены правильно
+3. Проверьте права доступа на всех серверах
+4. Проверьте сетевую доступность серверов
+5. Используйте команды диагностики выше
