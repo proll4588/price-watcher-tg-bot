@@ -40,12 +40,27 @@ jobs:
           }
 
           echo "2️⃣ Тестируем подключение к home server через jump server..."
+
+          # Сначала проверим, может ли jump server подключиться к home server напрямую
+          echo "🔍 Проверяем подключение jump server → home server..."
+          ssh -T -o ConnectTimeout=10 -o BatchMode=yes ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} "ssh -T -o ConnectTimeout=10 -o BatchMode=yes ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} 'echo \"Jump server может подключиться к home server\"'" || {
+            echo "❌ Jump server не может подключиться к home server"
+            echo "🔍 Проверьте на jump server:"
+            echo "   - ssh -i ~/.ssh/home_server_key ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }}"
+            echo "   - ls -la ~/.ssh/home_server_key*"
+            exit 1
+          }
+
+          # Теперь тестируем через ProxyJump
           ssh -T -o ConnectTimeout=10 -o BatchMode=yes -J ${{ secrets.JUMP_SERVER_USER }}@${{ secrets.JUMP_SERVER_HOST }} ${{ secrets.HOME_SERVER_USER }}@${{ secrets.HOME_SERVER_IP }} "echo '✅ Подключение к home server успешно'" || {
             echo "❌ Не удалось подключиться к home server через jump server"
             echo "🔍 Возможные причины:"
             echo "   - SSH ключ jump server не добавлен в authorized_keys на home server"
             echo "   - Неправильные права доступа на SSH ключи"
             echo "   - Проблемы с сетевым подключением"
+            echo "🔍 Проверьте на home server:"
+            echo "   - grep 'ssh-rsa' ~/.ssh/authorized_keys"
+            echo "   - chmod 600 ~/.ssh/authorized_keys"
             exit 1
           }
 

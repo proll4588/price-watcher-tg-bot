@@ -245,6 +245,10 @@ ls -la ~/.ssh/id_rsa*
 
 **На jump server:**
 ```bash
+# Запускаем диагностику
+./scripts/ssh-diagnostic.sh jump
+
+# Или вручную:
 # Проверяем наличие ключа для home server
 ls -la ~/.ssh/home_server_key*
 
@@ -257,6 +261,10 @@ ssh -i ~/.ssh/home_server_key user@home-server-ip "echo 'Подключение 
 
 **На home server:**
 ```bash
+# Запускаем диагностику
+./scripts/ssh-diagnostic.sh home
+
+# Или вручную:
 # Проверяем, что ключ jump server добавлен
 grep "ssh-rsa" ~/.ssh/authorized_keys
 

@@ -88,7 +88,19 @@ docker-compose ps
 
 ### Проблемы с CI/CD
 
-Если деплой не работает, см. [🔧 Troubleshooting GitHub Actions](docs/GITHUB_ACTIONS_TROUBLESHOOTING.md)
+Если деплой не работает:
+
+1. **Запустите диагностику SSH:**
+
+   ```bash
+   # На jump server
+   ./scripts/ssh-diagnostic.sh jump
+
+   # На home server
+   ./scripts/ssh-diagnostic.sh home
+   ```
+
+2. **Проверьте документацию:** [🔧 Troubleshooting GitHub Actions](docs/GITHUB_ACTIONS_TROUBLESHOOTING.md)
 
 ## Документация
 
