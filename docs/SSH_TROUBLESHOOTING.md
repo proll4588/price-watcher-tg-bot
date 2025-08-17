@@ -12,6 +12,18 @@
 ./scripts/ssh-diagnostic.sh home
 ```
 
+## Быстрое исправление
+
+### 1. Исправление на jump server
+```bash
+./scripts/fix-ssh-keys.sh jump user@home-server-ip
+```
+
+### 2. Проверка и исправление на home server
+```bash
+./scripts/fix-ssh-keys.sh home
+```
+
 ## Частые проблемы и решения
 
 ### Проблема: "SSH на jump server не работает"
@@ -74,6 +86,30 @@ ssh-keyscan -H home-server-ip >> ~/.ssh/known_hosts
 # Или добавьте вручную
 echo "home-server-ip ssh-rsa AAAAB3NzaC1yc2E..." >> ~/.ssh/known_hosts
 ```
+
+### Проблема: "Такой подход требует пароля для входа"
+
+**Причина:** SSH ProxyJump требует аутентификации на jump server, но GitHub Actions не может предоставить пароль
+
+**Решение:**
+1. **Убедитесь, что SSH ключ GitHub Actions добавлен на jump server:**
+   ```bash
+   # На jump server - проверьте authorized_keys
+   grep "github_actions" ~/.ssh/authorized_keys
+   ```
+
+2. **В workflow используйте явное указание SSH ключа:**
+   ```bash
+   ssh -i ~/.ssh/id_rsa -J user@jump-server-ip user@home-server-ip
+   ```
+
+3. **Проверьте SSH агент GitHub Actions:**
+   ```bash
+   # В workflow должно быть:
+   - uses: webfactory/ssh-agent@v0.7.0
+     with:
+       ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+   ```
 
 ## Пошаговая проверка
 

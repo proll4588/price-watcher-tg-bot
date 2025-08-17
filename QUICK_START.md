@@ -94,13 +94,23 @@ docker-compose ps
 
    ```bash
    # На jump server
-   ./scripts/ssh-diagnostic.sh jump
+   ./scripts/ssh-diagnostic.sh jump user@home-server-ip
 
    # На home server
    ./scripts/ssh-diagnostic.sh home
    ```
 
-2. **Проверьте документацию:** [🔧 Troubleshooting GitHub Actions](docs/GITHUB_ACTIONS_TROUBLESHOOTING.md)
+2. **Исправьте SSH ключи:**
+
+   ```bash
+   # На jump server
+   ./scripts/fix-ssh-keys.sh jump user@home-server-ip
+
+   # На home server
+   ./scripts/fix-ssh-keys.sh home
+   ```
+
+3. **Проверьте документацию:** [🔧 Troubleshooting GitHub Actions](docs/GITHUB_ACTIONS_TROUBLESHOOTING.md)
 
 ## Документация
 
