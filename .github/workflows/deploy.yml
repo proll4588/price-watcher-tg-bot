@@ -17,21 +17,21 @@ jobs:
         run: |
           echo "🔧 Настраиваем WireGuard VPN..."
 
-          # Устанавливаем WireGuard
-          apt-get update && apt-get install -y wireguard wireguard-tools
+          # Устанавливаем WireGuard с sudo
+          sudo apt-get update && sudo apt-get install -y wireguard wireguard-tools
 
           # Создаем конфигурацию WireGuard
-          mkdir -p /etc/wireguard
-          cat > /etc/wireguard/wg0.conf << 'EOF'
+          sudo mkdir -p /etc/wireguard
+          sudo tee /etc/wireguard/wg0.conf > /dev/null << 'EOF'
           ${{ secrets.WIREGUARD_CONFIG }}
           EOF
 
           # Устанавливаем правильные права
-          chmod 600 /etc/wireguard/wg0.conf
+          sudo chmod 600 /etc/wireguard/wg0.conf
 
           # Запускаем VPN
           echo "🚀 Запускаем WireGuard VPN..."
-          wg-quick up wg0
+          sudo wg-quick up wg0
 
           # Ждем установки соединения
           echo "⏳ Ждем установки VPN соединения..."
@@ -39,11 +39,16 @@ jobs:
 
           # Проверяем статус VPN
           echo "🔍 Проверяем статус WireGuard:"
-          wg show
+          sudo wg show
 
           # Проверяем маршрутизацию
           echo "🔍 Проверяем маршрутизацию:"
           ip route show
+
+      - name: Setup SSH for VPN
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Test VPN connection
         run: |

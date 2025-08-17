@@ -55,6 +55,9 @@ cat /etc/wireguard/public.key
 |----------|----------|----------|
 | `WIREGUARD_CONFIG` | Конфигурация из скрипта | WireGuard конфигурация GitHub Actions |
 | `HOME_SERVER_VPN_IP` | `10.0.0.1` | IP адрес home server в VPN |
+| `SSH_PRIVATE_KEY` | Приватный SSH ключ | SSH ключ для подключения к home server |
+| `HOME_SERVER_USER` | Пользователь | Пользователь на home server |
+| `PROJECT_PATH` | Путь к проекту | Полный путь к проекту на home server |
 
 ### Шаг 4: Добавление peer на Home Server
 

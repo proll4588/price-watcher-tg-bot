@@ -46,7 +46,7 @@ docker-compose logs -f app
 
 1. Настройте WireGuard на home server: `sudo ./scripts/setup-wireguard.sh`
 2. Сгенерируйте конфигурацию: `./scripts/generate-wireguard-config.sh`
-3. Добавьте секреты в GitHub: `WIREGUARD_CONFIG`, `HOME_SERVER_VPN_IP`
+3. Добавьте секреты в GitHub: `WIREGUARD_CONFIG`, `HOME_SERVER_VPN_IP`, `SSH_PRIVATE_KEY`
 4. Добавьте peer на home server
 5. Создайте тег для тестирования
 
