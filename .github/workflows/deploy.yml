@@ -74,7 +74,7 @@ jobs:
             
             echo "✅ .env файл найден, продолжаем деплой"
             echo "🚀 Запускаем скрипт деплоя..."
-            sudo ./scripts/deploy.sh production
+            ./scripts/deploy.sh production
             
             echo "✅ Деплой завершен успешно!"
           EOF
