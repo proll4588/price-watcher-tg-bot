@@ -17,13 +17,33 @@ class PriceCheckerWorker {
   private setupWorker(): void {
     queueService.setPriceCheckHandler(this.handlePriceCheck.bind(this));
     queueLogger.info("Воркер проверки цен запущен");
+
+    // Логируем информацию о повторяющихся задачах при запуске
+    this.logRepeatableJobs();
+  }
+
+  private async logRepeatableJobs(): Promise<void> {
+    try {
+      const repeatableJobs = await queueService.getRepeatableJobs();
+      queueLogger.info("Найдены повторяющиеся задачи при запуске", {
+        count: repeatableJobs.length,
+        jobs: repeatableJobs.map((job: any) => ({
+          id: job.id,
+          pattern: job.pattern,
+          every: job.every,
+        })),
+      });
+    } catch (error) {
+      queueLogger.error("Ошибка при получении повторяющихся задач", { error });
+    }
   }
 
   private async handlePriceCheck(job: Job): Promise<void> {
-    const { trackId, productId, userId } = job.data;
+    // Обрабатываем как обычные задачи, так и повторяющиеся
+    const { trackId } = job.data as any;
 
     try {
-      queueLogger.info("Начинаю проверку цены", { trackId, productId, userId });
+      queueLogger.info("Начинаю проверку цены", { trackId, jobType: job.name });
 
       // Получаем информацию об отслеживании
       const track = await databaseService.getTrackById(trackId);
@@ -35,7 +55,7 @@ class PriceCheckerWorker {
       // Получаем информацию о товаре
       const product = track.product;
       if (!product || !product.isActive) {
-        queueLogger.info("Товар неактивен или не найден", { productId });
+        queueLogger.info("Товар неактивен или не найден", { productId: product?.id || "unknown" });
         return;
       }
 
@@ -44,7 +64,7 @@ class PriceCheckerWorker {
 
       if (!priceResult.success || !priceResult.data) {
         queueLogger.warn("Не удалось получить цену товара", {
-          productId,
+          productId: product.id,
           error: priceResult.error,
         });
 
@@ -87,8 +107,6 @@ class PriceCheckerWorker {
     } catch (error) {
       queueLogger.error("Ошибка при проверке цены", {
         trackId,
-        productId,
-        userId,
         error,
       });
       throw error;

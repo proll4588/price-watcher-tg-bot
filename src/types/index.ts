@@ -82,6 +82,12 @@ export interface PriceCheckJob extends QueueJob {
   };
 }
 
+export interface RecurringPriceCheckJob extends QueueJob {
+  data: {
+    trackId: string;
+  };
+}
+
 export interface NotificationJob extends QueueJob {
   data: {
     userId: string;

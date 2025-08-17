@@ -182,6 +182,18 @@ class QueueService {
   }
 
   /**
+   * Получает повторяющиеся задачи
+   */
+  async getRepeatableJobs() {
+    try {
+      return await this.priceCheckQueue.getRepeatableJobs();
+    } catch (error) {
+      queueLogger.error("Ошибка при получении повторяющихся задач", { error });
+      throw error;
+    }
+  }
+
+  /**
    * Получает статистику очередей
    */
   async getQueueStats() {
