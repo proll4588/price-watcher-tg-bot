@@ -220,7 +220,7 @@ POST /webhook
 ### Архитектура деплоя
 
 ```
-GitHub → GitHub Actions → Арендованный сервер → VPN → Домашний сервер (Docker)
+GitHub → GitHub Actions → WireGuard VPN → Домашний сервер (Docker)
 ```
 
 ### Настройка CI/CD
@@ -233,6 +233,8 @@ GitHub → GitHub Actions → Арендованный сервер → VPN → 
 - [🔐 **Настройка GitHub Secrets**](docs/GITHUB_SECRETS_SETUP.md) - **Пошаговая настройка SSH ключей и секретов**
 - [🔧 **SSH Troubleshooting**](docs/SSH_TROUBLESHOOTING.md) - **Устранение проблем с SSH подключениями**
 - [🔧 **WireGuard Setup**](docs/WIREGUARD_SETUP.md) - **Настройка WireGuard VPN для CI/CD**
+
+**Примечание:** Переменные окружения (.env) хранятся на сервере, а не в GitHub Secrets.
 
 ## 🏗️ Структура проекта
 

@@ -48,7 +48,8 @@ docker-compose logs -f app
 2. Сгенерируйте конфигурацию: `./scripts/generate-wireguard-config.sh`
 3. Добавьте секреты в GitHub: `WIREGUARD_CONFIG`, `HOME_SERVER_VPN_IP`, `SSH_PRIVATE_KEY`
 4. Добавьте peer на home server
-5. Создайте тег для тестирования
+5. **Создайте .env файл на сервере:** `cp env.example .env && nano .env`
+6. Создайте тег для тестирования
 
 ### Вариант 2: SSH через Jump Server
 

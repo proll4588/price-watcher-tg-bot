@@ -65,27 +65,14 @@ jobs:
             cd ${{ secrets.PROJECT_PATH }}
             
             echo "🔄 Проверяем наличие .env файла..."
-            if [ -f .env ]; then
-              echo "✅ .env файл уже существует, пропускаем создание"
-            else
-              echo "📝 Создаем .env файл с секретами..."
-              cat > .env << 'ENV_EOF'
-              NODE_ENV=production
-              PORT=${{ secrets.PORT }}
-              DATABASE_URL=${{ secrets.DATABASE_URL }}
-              POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-              POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-              POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-              TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
-              TELEGRAM_WEBHOOK_URL=${{ secrets.TELEGRAM_WEBHOOK_URL }}
-              REDIS_URL=${{ secrets.REDIS_URL }}
-              GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-              PROMETHEUS_PASSWORD=${{ secrets.PROMETHEUS_PASSWORD }}
-              LOG_LEVEL=${{ secrets.LOG_LEVEL }}
-              ENV_EOF
-              echo "✅ .env файл создан"
+            if [ ! -f .env ]; then
+              echo "❌ .env файл не найден!"
+              echo "🔍 Создайте .env файл на сервере перед деплоем"
+              echo "📝 Используйте: cp env.example .env && nano .env"
+              exit 1
             fi
             
+            echo "✅ .env файл найден, продолжаем деплой"
             echo "🚀 Запускаем скрипт деплоя..."
             ./scripts/deploy.sh production
             

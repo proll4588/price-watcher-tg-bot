@@ -59,6 +59,8 @@ cat /etc/wireguard/public.key
 | `HOME_SERVER_USER` | Пользователь | Пользователь на home server |
 | `PROJECT_PATH` | Путь к проекту | Полный путь к проекту на home server |
 
+**Примечание:** Переменные окружения (.env) должны храниться на сервере, а не в GitHub Secrets.
+
 ### Шаг 4: Добавление peer на Home Server
 
 **Где выполнять:** На home server
