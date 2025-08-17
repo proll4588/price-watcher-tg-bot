@@ -248,6 +248,9 @@ ls -la ~/.ssh/id_rsa*
 # Запускаем диагностику
 ./scripts/ssh-diagnostic.sh jump
 
+# Тестируем подключение к home server
+./scripts/ssh-diagnostic.sh jump user@home-server-ip
+
 # Или вручную:
 # Проверяем наличие ключа для home server
 ls -la ~/.ssh/home_server_key*

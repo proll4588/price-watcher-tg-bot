@@ -231,6 +231,7 @@ GitHub → GitHub Actions → Арендованный сервер → VPN → 
 - [Настройка CI/CD](docs/CI_CD_SETUP.md)
 - [Настройка окружения](docs/ENVIRONMENT_SETUP.md)
 - [🔐 **Настройка GitHub Secrets**](docs/GITHUB_SECRETS_SETUP.md) - **Пошаговая настройка SSH ключей и секретов**
+- [🔧 **SSH Troubleshooting**](docs/SSH_TROUBLESHOOTING.md) - **Устранение проблем с SSH подключениями**
 
 ## 🏗️ Структура проекта
 

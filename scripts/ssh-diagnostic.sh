@@ -45,6 +45,24 @@ case "$1" in
         echo "5️⃣ Тестируем SSH конфигурацию..."
         ssh -T -o ConnectTimeout=5 -o BatchMode=yes localhost "echo 'SSH на jump server работает'" 2>/dev/null || echo "SSH на jump server не работает"
         
+        echo ""
+        echo "6️⃣ Проверяем SSH сервис..."
+        sudo systemctl status ssh --no-pager -l 2>/dev/null || echo "SSH сервис не найден или недоступен"
+        
+        echo ""
+        echo "7️⃣ Проверяем SSH конфигурацию..."
+        sudo cat /etc/ssh/sshd_config | grep -E "(Port|PermitRootLogin|PubkeyAuthentication)" 2>/dev/null || echo "SSH конфигурация недоступна"
+        
+        echo ""
+        echo "8️⃣ Тестируем подключение к home server..."
+        if [ -n "$2" ]; then
+            echo "Тестируем подключение к: $2"
+            ssh -T -o ConnectTimeout=10 -o BatchMode=yes -i ~/.ssh/home_server_key "$2" "echo 'Подключение к home server работает'" 2>/dev/null || echo "Не удалось подключиться к home server"
+        else
+            echo "Для тестирования подключения к home server укажите пользователя и IP:"
+            echo "  $0 jump user@home-server-ip"
+        fi
+        
         ;;
         
     "home")
