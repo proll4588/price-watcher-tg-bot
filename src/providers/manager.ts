@@ -1,5 +1,6 @@
 import { BaseProvider } from "./base";
 import { WildberriesProvider } from "./wildberries";
+import { YandexMarketProvider } from "./yandex-market";
 import { ProviderResult } from "../types";
 import { providerLogger } from "../utils/logger";
 
@@ -15,6 +16,11 @@ export class ProviderManager {
     const wildberriesProvider = new WildberriesProvider();
     this.providers.set("wildberries", wildberriesProvider);
     providerLogger.info("Wildberries Puppeteer провайдер инициализирован");
+
+    // YandexMarket Puppeteer провайдер
+    const yandexMarketProvider = new YandexMarketProvider();
+    this.providers.set("yandex-market", yandexMarketProvider);
+    providerLogger.info("YandexMarket Puppeteer провайдер инициализирован");
 
     providerLogger.info(`Инициализировано провайдеров: ${this.providers.size}`);
   }
@@ -40,7 +46,7 @@ export class ProviderManager {
     if (!provider) {
       return {
         success: false,
-        error: "Неподдерживаемый маркетплейс. Поддерживается: Wildberries",
+        error: "Неподдерживаемый маркетплейс. Поддерживается: Wildberries, YandexMarket",
       };
     }
 
