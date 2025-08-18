@@ -36,6 +36,7 @@ export interface NotificationData {
   discount: number;
   productUrl: string;
   affiliateUrl?: string;
+  notificationId?: string;
 }
 
 import { Context } from "telegraf";

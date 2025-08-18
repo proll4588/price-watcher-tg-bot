@@ -18,7 +18,12 @@ class NotifierWorker {
     const { userId, type, title, message, notificationData } = job.data;
 
     try {
-      queueLogger.info("Отправка уведомления", { userId, type, title });
+      queueLogger.info("Отправка уведомления", {
+        userId,
+        type,
+        title,
+        notificationId: notificationData?.notificationId,
+      });
 
       // Получаем пользователя
       const user = await databaseService.getUserById(userId);
@@ -37,8 +42,11 @@ class NotifierWorker {
       });
 
       if (success) {
-        // Помечаем уведомление как отправленное
-        if (job.id) {
+        // Помечаем уведомление как отправленное по ID уведомления
+        if (notificationData?.notificationId) {
+          await databaseService.markNotificationAsSent(notificationData.notificationId);
+        } else if (job.id) {
+          // Fallback для старых уведомлений без notificationId
           await databaseService.markNotificationAsSent(job.id);
         }
 
@@ -46,12 +54,14 @@ class NotifierWorker {
           userId,
           type,
           telegramId,
+          notificationId: notificationData?.notificationId,
         });
       } else {
         queueLogger.error("Не удалось отправить уведомление", {
           userId,
           type,
           telegramId,
+          notificationId: notificationData?.notificationId,
         });
 
         // Если пользователь заблокировал бота, деактивируем отслеживания
@@ -62,6 +72,7 @@ class NotifierWorker {
         userId,
         type,
         error,
+        notificationId: notificationData?.notificationId,
       });
       throw error;
     }

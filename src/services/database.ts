@@ -269,6 +269,31 @@ class DatabaseService {
     }
   ) {
     try {
+      // Проверяем, не существует ли уже уведомление для этого отслеживания за последние 5 минут
+      if (data.trackId) {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const existingNotification = await this.prisma.notification.findFirst({
+          where: {
+            userId,
+            trackId: data.trackId,
+            type: data.type,
+            createdAt: {
+              gte: fiveMinutesAgo,
+            },
+          },
+        });
+
+        if (existingNotification) {
+          dbLogger.warn("Уведомление уже существует для этого отслеживания", {
+            userId,
+            trackId: data.trackId,
+            type: data.type,
+            existingNotificationId: existingNotification.id,
+          });
+          return existingNotification;
+        }
+      }
+
       const notification = await this.prisma.notification.create({
         data: {
           userId,
