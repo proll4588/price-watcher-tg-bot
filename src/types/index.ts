@@ -39,6 +39,10 @@ export interface NotificationData {
   notificationId?: string;
 }
 
+export interface UnavailableNotificationData {
+  notificationId?: string;
+}
+
 import { Context } from "telegraf";
 
 export interface BotContext {
@@ -95,7 +99,7 @@ export interface NotificationJob extends QueueJob {
     type: "PRICE_DROP" | "PRICE_INCREASE" | "PRODUCT_UNAVAILABLE" | "SYSTEM";
     title: string;
     message: string;
-    notificationData?: NotificationData;
+    notificationData?: NotificationData | UnavailableNotificationData;
   };
 }
 
