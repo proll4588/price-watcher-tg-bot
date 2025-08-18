@@ -78,14 +78,21 @@ class QueueService {
    */
   async addNotificationJob(data: NotificationJob["data"]): Promise<void> {
     try {
+      // Создаем уникальный jobId на основе notificationId, если он есть
+      const jobId = data.notificationData?.notificationId
+        ? `notification-${data.notificationData.notificationId}`
+        : `notification-${data.userId}-${Date.now()}`;
+
       await this.notificationQueue.add("send-notification", data, {
-        jobId: `notification-${data.userId}-${Date.now()}`,
+        jobId,
         priority: data.type === "PRICE_DROP" ? 1 : 2, // Приоритет для уведомлений о снижении цены
       });
 
       queueLogger.info("Задача уведомления добавлена в очередь", {
         userId: data.userId,
         type: data.type,
+        jobId,
+        notificationId: data.notificationData?.notificationId,
       });
     } catch (error) {
       queueLogger.error("Ошибка при добавлении задачи уведомления", { data, error });

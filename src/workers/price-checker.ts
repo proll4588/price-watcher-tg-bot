@@ -144,7 +144,7 @@ class PriceCheckerWorker {
     // Создаем партнерскую ссылку
     const affiliateUrl = this.providerManager.createAffiliateUrl(product.url);
 
-    // Создаем уведомление
+    // Создаем уведомление только в базе данных
     const notificationData = {
       oldPrice,
       newPrice,
@@ -153,7 +153,7 @@ class PriceCheckerWorker {
       affiliateUrl,
     };
 
-    await databaseService.createNotification(track.userId, {
+    const notification = await databaseService.createNotification(track.userId, {
       type: "PRICE_DROP",
       title: "💰 Цена снизилась!",
       message: this.formatPriceDropMessage(product, oldPrice, newPrice, discount, affiliateUrl),
@@ -161,18 +161,22 @@ class PriceCheckerWorker {
       notificationData,
     });
 
-    // Добавляем задачу отправки уведомления в очередь
+    // Добавляем задачу отправки уведомления в очередь с ID уведомления
     await queueService.addNotificationJob({
       userId: track.userId,
       type: "PRICE_DROP",
       title: "💰 Цена снизилась!",
       message: this.formatPriceDropMessage(product, oldPrice, newPrice, discount, affiliateUrl),
-      notificationData,
+      notificationData: {
+        ...notificationData,
+        notificationId: notification.id,
+      },
     });
 
     queueLogger.info("Уведомление о снижении цены создано", {
       trackId: track.id,
       discount,
+      notificationId: notification.id,
     });
   }
 
@@ -184,8 +188,8 @@ class PriceCheckerWorker {
   ): Promise<void> {
     const increase = ((Number(newPrice) - Number(oldPrice)) / Number(oldPrice)) * 100;
 
-    // Создаем уведомление о повышении цены
-    await databaseService.createNotification(track.userId, {
+    // Создаем уведомление о повышении цены только в базе данных
+    const notification = await databaseService.createNotification(track.userId, {
       type: "PRICE_INCREASE",
       title: "📈 Цена повысилась",
       message: this.formatPriceIncreaseMessage(product, oldPrice, newPrice, increase),
@@ -198,7 +202,7 @@ class PriceCheckerWorker {
       },
     });
 
-    // Добавляем задачу отправки уведомления в очередь
+    // Добавляем задачу отправки уведомления в очередь с ID уведомления
     await queueService.addNotificationJob({
       userId: track.userId,
       type: "PRICE_INCREASE",
@@ -209,28 +213,40 @@ class PriceCheckerWorker {
         newPrice,
         discount: increase,
         productUrl: product.url,
+        notificationId: notification.id,
       },
     });
 
     queueLogger.info("Уведомление о повышении цены создано", {
       trackId: track.id,
       increase: `${increase.toFixed(1)}%`,
+      notificationId: notification.id,
     });
   }
 
   private async createUnavailableNotification(track: any, product: any): Promise<void> {
-    await databaseService.createNotification(track.userId, {
+    // Создаем уведомление о недоступности товара только в базе данных
+    const notification = await databaseService.createNotification(track.userId, {
       type: "PRODUCT_UNAVAILABLE",
       title: "❌ Товар недоступен",
       message: `Товар "${product.title}" временно недоступен или был удален с сайта.`,
       trackId: track.id,
     });
 
+    // Добавляем задачу отправки уведомления в очередь с ID уведомления
     await queueService.addNotificationJob({
       userId: track.userId,
       type: "PRODUCT_UNAVAILABLE",
       title: "❌ Товар недоступен",
       message: `Товар "${product.title}" временно недоступен или был удален с сайта.`,
+      notificationData: {
+        notificationId: notification.id,
+      },
+    });
+
+    queueLogger.info("Уведомление о недоступности товара создано", {
+      trackId: track.id,
+      notificationId: notification.id,
     });
   }
 
