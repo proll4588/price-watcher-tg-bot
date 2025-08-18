@@ -5,6 +5,7 @@ import { queueService } from "../services/queue";
 import { queueLogger } from "../utils/logger";
 import { formatPrice, formatDiscount } from "../utils/formatters";
 import { Decimal } from "@prisma/client/runtime/library";
+import { UnavailableNotificationData } from "../types";
 
 class PriceCheckerWorker {
   private providerManager: ProviderManager;
@@ -241,7 +242,7 @@ class PriceCheckerWorker {
       message: `Товар "${product.title}" временно недоступен или был удален с сайта.`,
       notificationData: {
         notificationId: notification.id,
-      },
+      } as UnavailableNotificationData,
     });
 
     queueLogger.info("Уведомление о недоступности товара создано", {
