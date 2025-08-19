@@ -452,6 +452,9 @@ cp env.example .env
 # Запуск всех сервисов
 docker-compose up -d
 
+# Запуск только системы мониторинга
+npm run monitoring:start
+
 # Просмотр логов
 docker-compose logs -f app
 

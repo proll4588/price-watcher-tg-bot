@@ -17,6 +17,7 @@
     "debug:tracks": "node scripts/debug-tracks.js",
     "restore:jobs": "node scripts/restore-recurring-jobs.js",
     "test:analytics": "node scripts/test-analytics.js",
+    "monitoring:start": "./scripts/start-monitoring.sh",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
