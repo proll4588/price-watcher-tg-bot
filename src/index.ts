@@ -169,11 +169,6 @@ class Application {
       await databaseService.testConnection();
       botLogger.info("Подключение к базе данных установлено");
 
-      // Запускаем Telegram-бота
-      botLogger.info("Запускаю Telegram-бота...");
-      await telegramBot.start();
-      botLogger.info("Telegram-бот запущен");
-
       // Запускаем сервис аналитики
       botLogger.info("Запускаю сервис аналитики...");
       analyticsService.start();
@@ -184,6 +179,17 @@ class Application {
       this.server = this.app.listen(config.server.port, () => {
         botLogger.info(`HTTP-сервер запущен на порту ${config.server.port}`);
       });
+
+      // Запускаем Telegram-бота (неблокирующий)
+      botLogger.info("Запускаю Telegram-бота...");
+      telegramBot
+        .start()
+        .then(() => {
+          botLogger.info("Telegram-бот запущен");
+        })
+        .catch(error => {
+          botLogger.error("Ошибка при запуске бота:", { error });
+        });
 
       // Настраиваем graceful shutdown
       this.setupGracefulShutdown();
