@@ -3,6 +3,7 @@ import Redis from "ioredis";
 import { queueLogger } from "../utils/logger";
 import config from "../config";
 import { PriceCheckJob, NotificationJob } from "../types";
+import { metricsService } from "./metrics";
 
 class QueueService {
   private redis: Redis;
@@ -210,13 +211,43 @@ class QueueService {
         this.notificationQueue.getJobCounts(),
       ]);
 
-      return {
+      const stats = {
         priceCheck: priceCheckStats,
         notification: notificationStats,
       };
+
+      // Обновляем метрики очередей
+      this.updateQueueMetrics(stats);
+
+      return stats;
     } catch (error) {
       queueLogger.error("Ошибка при получении статистики очередей", { error });
       throw error;
+    }
+  }
+
+  /**
+   * Обновляет метрики очередей
+   */
+  private updateQueueMetrics(stats: any): void {
+    try {
+      // Обновляем метрики для очереди проверки цен
+      if (stats.priceCheck) {
+        metricsService.setQueueJobsWaiting("price_check", stats.priceCheck.waiting || 0);
+        metricsService.setQueueJobsActive("price_check", stats.priceCheck.active || 0);
+        metricsService.setQueueJobsCompleted("price_check", stats.priceCheck.completed || 0);
+        metricsService.setQueueJobsFailed("price_check", stats.priceCheck.failed || 0);
+      }
+
+      // Обновляем метрики для очереди уведомлений
+      if (stats.notification) {
+        metricsService.setQueueJobsWaiting("notifications", stats.notification.waiting || 0);
+        metricsService.setQueueJobsActive("notifications", stats.notification.active || 0);
+        metricsService.setQueueJobsCompleted("notifications", stats.notification.completed || 0);
+        metricsService.setQueueJobsFailed("notifications", stats.notification.failed || 0);
+      }
+    } catch (error) {
+      queueLogger.error("Ошибка при обновлении метрик очередей", { error });
     }
   }
 

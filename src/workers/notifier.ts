@@ -3,6 +3,7 @@ import { databaseService } from "../services/database";
 import { telegramBot } from "../bot";
 import { queueService } from "../services/queue";
 import { queueLogger } from "../utils/logger";
+import { metricsService } from "../services/metrics";
 
 class NotifierWorker {
   constructor() {
@@ -50,6 +51,9 @@ class NotifierWorker {
           await databaseService.markNotificationAsSent(job.id);
         }
 
+        // Увеличиваем счетчик отправленных уведомлений
+        metricsService.incrementNotificationSent(type, "success");
+
         queueLogger.info("Уведомление отправлено успешно", {
           userId,
           type,
@@ -64,6 +68,9 @@ class NotifierWorker {
           notificationId: notificationData?.notificationId,
         });
 
+        // Увеличиваем счетчик неудачных уведомлений
+        metricsService.incrementNotificationFailed(type, "user_blocked");
+
         // Если пользователь заблокировал бота, деактивируем отслеживания
         await this.handleBlockedUser(userId);
       }
@@ -74,6 +81,10 @@ class NotifierWorker {
         error,
         notificationId: notificationData?.notificationId,
       });
+
+      // Увеличиваем счетчик ошибок воркера
+      metricsService.incrementWorkerError("notifier", "notification_failed");
+
       throw error;
     }
   }
