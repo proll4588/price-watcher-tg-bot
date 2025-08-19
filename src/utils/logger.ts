@@ -24,3 +24,5 @@ export const providerLogger = logger.child({ component: "provider" });
 export const queueLogger = logger.child({ component: "queue" });
 export const dbLogger = logger.child({ component: "database" });
 export const apiLogger = logger.child({ component: "api" });
+export const metricsLogger = logger.child({ component: "metrics" });
+export const analyticsLogger = logger.child({ component: "analytics" });

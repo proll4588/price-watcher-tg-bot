@@ -6,6 +6,7 @@ import { queueLogger } from "../utils/logger";
 import { formatPrice, formatDiscount } from "../utils/formatters";
 import { Decimal } from "@prisma/client/runtime/library";
 import { UnavailableNotificationData } from "../types";
+import { metricsService } from "../services/metrics";
 
 class PriceCheckerWorker {
   private providerManager: ProviderManager;
@@ -42,6 +43,7 @@ class PriceCheckerWorker {
   private async handlePriceCheck(job: Job): Promise<void> {
     // Обрабатываем как обычные задачи, так и повторяющиеся
     const { trackId } = job.data as any;
+    const startTime = Date.now();
 
     try {
       queueLogger.info("Начинаю проверку цены", { trackId, jobType: job.name });
@@ -69,6 +71,9 @@ class PriceCheckerWorker {
           error: priceResult.error,
         });
 
+        // Увеличиваем счетчик неудачных проверок цен
+        metricsService.incrementPriceCheck(product.provider, "failed");
+
         // Создаем уведомление о недоступности товара
         await this.createUnavailableNotification(track, product);
         return;
@@ -92,12 +97,21 @@ class PriceCheckerWorker {
 
         if (priceChange > 0) {
           // Цена снизилась
+          metricsService.incrementPriceChange(product.provider, "decrease");
           await this.handlePriceDrop(track, product, oldPrice, currentPrice);
         } else {
           // Цена повысилась
+          metricsService.incrementPriceChange(product.provider, "increase");
           await this.handlePriceIncrease(track, product, oldPrice, currentPrice);
         }
       }
+
+      // Увеличиваем счетчик успешных проверок цен
+      metricsService.incrementPriceCheck(product.provider, "success");
+
+      // Записываем время выполнения
+      const duration = (Date.now() - startTime) / 1000;
+      metricsService.observePriceCheckDuration(product.provider, duration);
 
       queueLogger.info("Проверка цены завершена", {
         trackId,
@@ -110,6 +124,10 @@ class PriceCheckerWorker {
         trackId,
         error,
       });
+
+      // Увеличиваем счетчик ошибок воркера
+      metricsService.incrementWorkerError("price_checker", "price_check_failed");
+
       throw error;
     }
   }

@@ -7,6 +7,8 @@ import { botLogger, apiLogger } from "./utils/logger";
 import { telegramBot } from "./bot";
 import { databaseService } from "./services/database";
 import { queueService } from "./services/queue";
+import { analyticsService } from "./services/analytics";
+import { metricsService } from "./services/metrics";
 import config from "./config";
 
 class Application {
@@ -69,7 +71,7 @@ class Application {
     this.app.get("/metrics", async (_req, res) => {
       try {
         res.set("Content-Type", register.contentType);
-        res.end(await register.metrics());
+        res.end(await metricsService.getMetrics());
       } catch (error) {
         apiLogger.error("Ошибка при получении метрик:", { error });
         res.status(500).end();
@@ -83,6 +85,17 @@ class Application {
         res.json(stats);
       } catch (error) {
         apiLogger.error("Ошибка при получении статистики:", { error });
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    // Детальная аналитика API
+    this.app.get("/api/analytics", async (_req, res) => {
+      try {
+        const analytics = await analyticsService.getDetailedAnalytics();
+        res.json(analytics);
+      } catch (error) {
+        apiLogger.error("Ошибка при получении аналитики:", { error });
         res.status(500).json({ error: "Internal server error" });
       }
     });
@@ -161,6 +174,11 @@ class Application {
       await telegramBot.start();
       botLogger.info("Telegram-бот запущен");
 
+      // Запускаем сервис аналитики
+      botLogger.info("Запускаю сервис аналитики...");
+      analyticsService.start();
+      botLogger.info("Сервис аналитики запущен");
+
       // Запускаем HTTP-сервер
       botLogger.info(`Запускаю HTTP-сервер на порту ${config.server.port}...`);
       this.server = this.app.listen(config.server.port, () => {
@@ -197,6 +215,9 @@ class Application {
 
       // Закрываем браузеры (Puppeteer)
       await telegramBot.providerManager.closeBrowsers();
+
+      // Останавливаем сервис аналитики
+      analyticsService.stop();
 
       // Закрываем очереди
       await queueService.close();

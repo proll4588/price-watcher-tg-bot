@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { dbLogger } from "../utils/logger";
+import { metricsService } from "./metrics";
 
 class DatabaseService {
   private prisma: PrismaClient;
@@ -38,6 +39,11 @@ class DatabaseService {
           lastName: userData?.lastName || null,
         },
       });
+
+      // Увеличиваем счетчик новых пользователей, если это создание
+      if (user.createdAt.getTime() === user.updatedAt.getTime()) {
+        metricsService.incrementNewUser("telegram");
+      }
 
       return user;
     } catch (error) {
@@ -122,6 +128,9 @@ class DatabaseService {
         },
       });
 
+      // Увеличиваем счетчик запросов на отслеживание
+      metricsService.incrementTrackRequest(track.product.provider, "success");
+
       return track;
     } catch (error) {
       // Проверяем, является ли это ошибкой дублирования
@@ -130,6 +139,8 @@ class DatabaseService {
           userId,
           productId,
         });
+        // Увеличиваем счетчик дублирующих запросов
+        metricsService.incrementTrackRequest("unknown", "duplicate");
         throw new Error("Товар уже отслеживается");
       }
 
@@ -220,6 +231,11 @@ class DatabaseService {
         where: { id: trackId, userId },
       });
 
+      if (track.count > 0) {
+        // Увеличиваем счетчик удалений отслеживаний
+        metricsService.incrementTrackRemoval("user_request");
+      }
+
       return track.count > 0;
     } catch (error) {
       dbLogger.error("Ошибка при удалении отслеживания:", {
@@ -243,6 +259,15 @@ class DatabaseService {
           currency,
         },
       });
+
+      // Увеличиваем счетчик снимков цен
+      const product = await this.prisma.product.findUnique({
+        where: { id: productId },
+        select: { provider: true },
+      });
+      if (product) {
+        metricsService.incrementPriceSnapshot(product.provider);
+      }
 
       return snapshot;
     } catch (error) {
@@ -612,6 +637,105 @@ class DatabaseService {
     } catch (error) {
       dbLogger.error("Ошибка при получении количества активных товаров:", { error });
       throw error;
+    }
+  }
+
+  /**
+   * Получает количество новых пользователей за период
+   */
+  async getNewUsersCount(period: string): Promise<number> {
+    try {
+      const date = new Date();
+      switch (period) {
+        case "1 day":
+          date.setDate(date.getDate() - 1);
+          break;
+        case "7 days":
+          date.setDate(date.getDate() - 7);
+          break;
+        case "30 days":
+          date.setDate(date.getDate() - 30);
+          break;
+        default:
+          date.setDate(date.getDate() - 1);
+      }
+
+      const result = await this.prisma.user.count({
+        where: {
+          createdAt: {
+            gte: date,
+          },
+        },
+      });
+
+      return result;
+    } catch (error) {
+      dbLogger.error("Ошибка при получении количества новых пользователей", { period, error });
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество запросов на отслеживание за период
+   */
+  async getTrackRequestsCount(period: string): Promise<number> {
+    try {
+      const date = new Date();
+      switch (period) {
+        case "1 day":
+          date.setDate(date.getDate() - 1);
+          break;
+        case "7 days":
+          date.setDate(date.getDate() - 7);
+          break;
+        default:
+          date.setDate(date.getDate() - 1);
+      }
+
+      const result = await this.prisma.track.count({
+        where: {
+          createdAt: {
+            gte: date,
+          },
+        },
+      });
+
+      return result;
+    } catch (error) {
+      dbLogger.error("Ошибка при получении количества запросов на отслеживание", { period, error });
+      return 0;
+    }
+  }
+
+  /**
+   * Получает количество уведомлений за период
+   */
+  async getNotificationsCount(period: string): Promise<number> {
+    try {
+      const date = new Date();
+      switch (period) {
+        case "1 day":
+          date.setDate(date.getDate() - 1);
+          break;
+        case "7 days":
+          date.setDate(date.getDate() - 7);
+          break;
+        default:
+          date.setDate(date.getDate() - 1);
+      }
+
+      const result = await this.prisma.notification.count({
+        where: {
+          createdAt: {
+            gte: date,
+          },
+        },
+      });
+
+      return result;
+    } catch (error) {
+      dbLogger.error("Ошибка при получении количества уведомлений", { period, error });
+      return 0;
     }
   }
 
