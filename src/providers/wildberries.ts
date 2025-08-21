@@ -28,8 +28,13 @@ export class WildberriesProvider extends BaseProvider {
   }
 
   async initBrowser(): Promise<void> {
-    if (!this.browser) {
-      try {
+    try {
+      // Проверяем, что браузер существует и не закрыт
+      if (this.browser && !this.browser.isConnected()) {
+        this.browser = null;
+      }
+
+      if (!this.browser) {
         this.browser = await puppeteer.launch({
           headless: "new",
           executablePath:
@@ -65,11 +70,17 @@ export class WildberriesProvider extends BaseProvider {
           ignoreHTTPSErrors: true,
           timeout: 30000,
         });
-      } catch (error) {
-        console.error("DEBUG - Ошибка при инициализации браузера:", error);
-        this.browser = null;
-        throw error;
+
+        // Добавляем обработчик события закрытия браузера
+        this.browser.on("disconnected", () => {
+          providerLogger.warn("Браузер был отключен");
+          this.browser = null;
+        });
       }
+    } catch (error) {
+      console.error("DEBUG - Ошибка при инициализации браузера:", error);
+      this.browser = null;
+      throw error;
     }
   }
 
@@ -114,14 +125,33 @@ export class WildberriesProvider extends BaseProvider {
    */
   private async waitForPageLoad(page: Page): Promise<void> {
     try {
+      // Сначала ждем загрузки DOM
+      await page.waitForFunction(
+        () => {
+          // @ts-ignore - document доступен в контексте браузера
+          // eslint-disable-next-line no-undef
+          return (document as any).readyState === "complete";
+        },
+        { timeout: 15000 }
+      );
+
+      // Ждем исчезновения страницы "Почти готово..."
+      await page.waitForFunction(
+        () => {
+          // @ts-ignore - document доступен в контексте браузера
+          // eslint-disable-next-line no-undef
+          const title = (document as any).title;
+          return title && !title.includes("Почти готово");
+        },
+        { timeout: 20000 }
+      );
+
+      // Ждем исчезновения элементов загрузки
       await page.waitForFunction(
         () => {
           // @ts-ignore - document доступен в контексте браузера
           // eslint-disable-next-line no-undef
           return (
-            (document as any).readyState === "complete" &&
-            // @ts-ignore
-            // eslint-disable-next-line no-undef
             !(document as any).querySelector(".loading") &&
             // @ts-ignore
             // eslint-disable-next-line no-undef
@@ -131,11 +161,16 @@ export class WildberriesProvider extends BaseProvider {
             !(document as any).querySelector(".spinner") &&
             // @ts-ignore
             // eslint-disable-next-line no-undef
-            !(document as any).querySelector(".loader")
+            !(document as any).querySelector(".loader") &&
+            // @ts-ignore
+            // eslint-disable-next-line no-undef
+            !(document as any).querySelector(".preloader")
           );
         },
         { timeout: 10000 }
       );
+
+      providerLogger.info("Страница полностью загружена");
     } catch (error) {
       providerLogger.warn("Таймаут ожидания загрузки страницы, продолжаем парсинг");
     }
@@ -147,31 +182,41 @@ export class WildberriesProvider extends BaseProvider {
   private async waitForProductElements(page: Page): Promise<boolean> {
     try {
       // Ждем появления заголовка товара
-      await Promise.race([
-        page.waitForSelector("h1", { timeout: 10000 }),
-        page.waitForSelector(".product-page__title", { timeout: 10000 }),
-        page.waitForSelector(".product-page__header h1", { timeout: 10000 }),
-        page.waitForSelector(".product-page__header", { timeout: 10000 }),
-        page.waitForSelector(".product-title", { timeout: 10000 }),
-        page.waitForSelector(".product__title", { timeout: 10000 }),
-      ]);
+      try {
+        await Promise.race([
+          page.waitForSelector("h1", { timeout: 10000 }),
+          page.waitForSelector(".product-page__title", { timeout: 10000 }),
+          page.waitForSelector(".product-page__header h1", { timeout: 10000 }),
+          page.waitForSelector(".product-page__header", { timeout: 10000 }),
+          page.waitForSelector(".product-title", { timeout: 10000 }),
+          page.waitForSelector(".product__title", { timeout: 10000 }),
+        ]);
+        providerLogger.info("Заголовок товара найден");
+      } catch (error) {
+        providerLogger.warn("Заголовок товара не найден в течение 10 секунд");
+      }
 
       // Ждем появления хотя бы одного элемента с ценой
-      await Promise.race([
-        page.waitForSelector(".price-block__price", { timeout: 10000 }),
-        page.waitForSelector(".price-block__wallet-price", { timeout: 10000 }),
-        page.waitForSelector(".price-block__final-price", { timeout: 10000 }),
-        page.waitForSelector("[data-price]", { timeout: 10000 }),
-        page.waitForSelector(".price", { timeout: 10000 }),
-        page.waitForSelector(".product-price", { timeout: 10000 }),
-        page.waitForSelector(".price-current", { timeout: 10000 }),
-        page.waitForSelector(".price__current", { timeout: 10000 }),
-        page.waitForSelector(".price-block", { timeout: 10000 }),
-      ]);
-
-      return true;
+      try {
+        await Promise.race([
+          page.waitForSelector(".price-block__price", { timeout: 10000 }),
+          page.waitForSelector(".price-block__wallet-price", { timeout: 10000 }),
+          page.waitForSelector(".price-block__final-price", { timeout: 10000 }),
+          page.waitForSelector("[data-price]", { timeout: 10000 }),
+          page.waitForSelector(".price", { timeout: 10000 }),
+          page.waitForSelector(".product-price", { timeout: 10000 }),
+          page.waitForSelector(".price-current", { timeout: 10000 }),
+          page.waitForSelector(".price__current", { timeout: 10000 }),
+          page.waitForSelector(".price-block", { timeout: 10000 }),
+        ]);
+        providerLogger.info("Элемент с ценой найден");
+        return true;
+      } catch (error) {
+        providerLogger.warn("Элементы с ценой не найдены в течение 10 секунд");
+        return false;
+      }
     } catch (error) {
-      providerLogger.warn("Не удалось дождаться элементов товара");
+      providerLogger.warn("Не удалось дождаться элементов товара", { error });
       return false;
     }
   }
@@ -181,7 +226,7 @@ export class WildberriesProvider extends BaseProvider {
    */
   private async validatePage(page: Page): Promise<boolean> {
     try {
-      const isValid = await page.evaluate(() => {
+      const validationResult = await page.evaluate(() => {
         // @ts-ignore - document доступен в контексте браузера
         // eslint-disable-next-line no-undef
         // Проверяем, что это не страница ошибки
@@ -195,11 +240,12 @@ export class WildberriesProvider extends BaseProvider {
           ".product-not-found",
         ];
 
+        const foundErrorElements = [];
         for (const selector of errorSelectors) {
           // @ts-ignore
           // eslint-disable-next-line no-undef
           if (document.querySelector(selector)) {
-            return false;
+            foundErrorElements.push(selector);
           }
         }
 
@@ -213,7 +259,7 @@ export class WildberriesProvider extends BaseProvider {
           ".product-page__content",
         ];
 
-        const hasContent = contentSelectors.some(selector => {
+        const foundContentElements = contentSelectors.filter(selector => {
           // @ts-ignore
           // eslint-disable-next-line no-undef
           return document.querySelector(selector);
@@ -222,17 +268,40 @@ export class WildberriesProvider extends BaseProvider {
         // Проверяем, что страница не пустая
         // @ts-ignore
         // eslint-disable-next-line no-undef
-        const hasText =
-          (document as any).body.textContent &&
-          // @ts-ignore
-          // eslint-disable-next-line no-undef
-          (document as any).body.textContent.trim().length > 100;
+        const bodyText = (document as any).body.textContent?.trim() || "";
+        const hasText = bodyText.length > 100;
 
-        return hasContent && hasText;
+        // @ts-ignore
+        // eslint-disable-next-line no-undef
+        const pageTitle = (document as any).title || "";
+
+        // @ts-ignore
+        // eslint-disable-next-line no-undef
+        const url = (document as any).location.href;
+
+        return {
+          hasErrorElements: foundErrorElements.length > 0,
+          foundErrorElements,
+          hasContentElements: foundContentElements.length > 0,
+          foundContentElements,
+          hasText,
+          bodyTextLength: bodyText.length,
+          pageTitle,
+          url,
+          isValid: foundErrorElements.length === 0 && foundContentElements.length > 0 && hasText,
+        };
       });
 
-      return isValid;
+      providerLogger.info("Результат валидации страницы:", {
+        isValid: validationResult.isValid,
+        hasContentElements: validationResult.hasContentElements,
+        foundContentElements: validationResult.foundContentElements,
+        pageTitle: validationResult.pageTitle,
+      });
+
+      return validationResult.isValid;
     } catch (error) {
+      providerLogger.error("Ошибка при валидации страницы:", { error });
       return false;
     }
   }
@@ -256,6 +325,11 @@ export class WildberriesProvider extends BaseProvider {
         let page: Page | null = null;
 
         try {
+          // Проверяем состояние браузера перед созданием страницы
+          if (!this.browser || !this.browser.isConnected()) {
+            throw new Error("Браузер недоступен или отключен");
+          }
+
           page = await this.browser.newPage();
 
           // Устанавливаем User-Agent
@@ -278,12 +352,15 @@ export class WildberriesProvider extends BaseProvider {
 
           // Переходим на страницу с улучшенным ожиданием
           await page.goto(url, {
-            waitUntil: "domcontentloaded",
-            timeout: 30000,
+            waitUntil: "networkidle2", // Ждем завершения сетевых запросов
+            timeout: 60000, // Увеличиваем таймаут
           });
 
           // Ждем полной загрузки страницы
           await this.waitForPageLoad(page);
+
+          // Дополнительное ожидание для динамического контента
+          await page.waitForTimeout(5000);
 
           // Проверяем, что страница не заблокирована
           const isBlocked = await page.evaluate(() => {
@@ -501,15 +578,30 @@ export class WildberriesProvider extends BaseProvider {
             data: productInfo,
           };
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+
+          // Если браузер закрылся, сбрасываем его состояние
+          if (
+            errorMessage.includes("Target closed") ||
+            errorMessage.includes("Protocol error") ||
+            errorMessage.includes("Session closed")
+          ) {
+            providerLogger.warn("Браузер был закрыт, сбрасываем состояние", { productId });
+            this.browser = null;
+          }
+
           providerLogger.error("Ошибка при обработке страницы:", {
             productId,
-            error: error instanceof Error ? error.message : error,
+            error: errorMessage,
           });
           throw error;
         } finally {
           if (page) {
             try {
-              await page.close();
+              // Проверяем, что страница не закрыта перед закрытием
+              if (!page.isClosed()) {
+                await page.close();
+              }
             } catch (error) {
               console.error("DEBUG - Ошибка при закрытии страницы:", error);
             }
@@ -517,9 +609,9 @@ export class WildberriesProvider extends BaseProvider {
         }
       },
       {
-        maxRetries: 2, // Увеличиваем количество попыток
+        maxRetries: 3, // Увеличиваем количество попыток
         baseDelay: 3000, // Увеличиваем базовую задержку
-        maxDelay: 8000, // Увеличиваем максимальную задержку
+        maxDelay: 10000, // Увеличиваем максимальную задержку
       }
     );
   }
