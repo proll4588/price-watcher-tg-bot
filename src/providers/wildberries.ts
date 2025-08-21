@@ -48,13 +48,22 @@ export class WildberriesProvider extends BaseProvider {
             "--disable-background-timer-throttling",
             "--disable-backgrounding-occluded-windows",
             "--disable-renderer-backgrounding",
+            "--disable-background-networking",
+            "--disable-default-apps",
+            "--disable-extensions",
+            "--disable-sync",
+            "--disable-translate",
+            "--hide-scrollbars",
+            "--mute-audio",
+            "--no-zygote",
+            "--single-process",
           ],
           defaultViewport: {
             width: 1366,
             height: 768,
           },
           ignoreHTTPSErrors: true,
-          timeout: 20000,
+          timeout: 30000,
         });
       } catch (error) {
         console.error("DEBUG - Ошибка при инициализации браузера:", error);
@@ -100,6 +109,155 @@ export class WildberriesProvider extends BaseProvider {
     }
   }
 
+  /**
+   * Ждет полной загрузки страницы с проверкой готовности контента
+   */
+  private async waitForPageLoad(page: Page): Promise<void> {
+    try {
+      // Ждем загрузки DOM
+      await page.waitForFunction(
+        () => {
+          // @ts-ignore - document доступен в контексте браузера
+          // eslint-disable-next-line no-undef
+          return document.readyState === "domcontentloaded";
+        },
+        { timeout: 15000 }
+      );
+
+      // Ждем завершения сетевых запросов (проверяем отсутствие активности)
+      await page.waitForFunction(
+        () => {
+          // @ts-ignore - document доступен в контексте браузера
+          // eslint-disable-next-line no-undef
+          return document.readyState === "complete";
+        },
+        { timeout: 20000 }
+      );
+
+      // Дополнительная проверка готовности страницы
+      await page.waitForFunction(
+        () => {
+          // @ts-ignore - document доступен в контексте браузера
+          // eslint-disable-next-line no-undef
+          return (
+            document.readyState === "complete" &&
+            // @ts-ignore
+            // eslint-disable-next-line no-undef
+            !document.querySelector(".loading") &&
+            // @ts-ignore
+            // eslint-disable-next-line no-undef
+            !document.querySelector('[data-loading="true"]') &&
+            // @ts-ignore
+            // eslint-disable-next-line no-undef
+            !document.querySelector(".spinner") &&
+            // @ts-ignore
+            // eslint-disable-next-line no-undef
+            !document.querySelector(".loader")
+          );
+        },
+        { timeout: 10000 }
+      );
+    } catch (error) {
+      providerLogger.warn("Таймаут ожидания загрузки страницы, продолжаем парсинг");
+    }
+  }
+
+  /**
+   * Ждет появления основных элементов товара
+   */
+  private async waitForProductElements(page: Page): Promise<boolean> {
+    try {
+      // Ждем появления заголовка товара
+      await Promise.race([
+        page.waitForSelector("h1", { timeout: 10000 }),
+        page.waitForSelector(".product-page__title", { timeout: 10000 }),
+        page.waitForSelector(".product-page__header h1", { timeout: 10000 }),
+        page.waitForSelector(".product-page__header", { timeout: 10000 }),
+        page.waitForSelector(".product-title", { timeout: 10000 }),
+        page.waitForSelector(".product__title", { timeout: 10000 }),
+      ]);
+
+      // Ждем появления хотя бы одного элемента с ценой
+      await Promise.race([
+        page.waitForSelector(".price-block__price", { timeout: 10000 }),
+        page.waitForSelector(".price-block__wallet-price", { timeout: 10000 }),
+        page.waitForSelector(".price-block__final-price", { timeout: 10000 }),
+        page.waitForSelector("[data-price]", { timeout: 10000 }),
+        page.waitForSelector(".price", { timeout: 10000 }),
+        page.waitForSelector(".product-price", { timeout: 10000 }),
+        page.waitForSelector(".price-current", { timeout: 10000 }),
+        page.waitForSelector(".price__current", { timeout: 10000 }),
+        page.waitForSelector(".price-block", { timeout: 10000 }),
+      ]);
+
+      return true;
+    } catch (error) {
+      providerLogger.warn("Не удалось дождаться элементов товара");
+      return false;
+    }
+  }
+
+  /**
+   * Проверяет, что страница загружена корректно и не является ошибкой
+   */
+  private async validatePage(page: Page): Promise<boolean> {
+    try {
+      const isValid = await page.evaluate(() => {
+        // @ts-ignore - document доступен в контексте браузера
+        // eslint-disable-next-line no-undef
+        // Проверяем, что это не страница ошибки
+        const errorSelectors = [
+          ".error-page",
+          ".not-found",
+          ".error-404",
+          "[data-error]",
+          ".error",
+          ".page-not-found",
+          ".product-not-found",
+        ];
+
+        for (const selector of errorSelectors) {
+          // @ts-ignore
+          // eslint-disable-next-line no-undef
+          if (document.querySelector(selector)) {
+            return false;
+          }
+        }
+
+        // Проверяем наличие основного контента
+        const contentSelectors = [
+          "h1",
+          ".product-page__title",
+          ".product-page__header",
+          ".product-title",
+          ".product__title",
+          ".product-page__content",
+        ];
+
+        const hasContent = contentSelectors.some(selector => {
+          // @ts-ignore
+          // eslint-disable-next-line no-undef
+          return document.querySelector(selector);
+        });
+
+        // Проверяем, что страница не пустая
+        // @ts-ignore
+        // eslint-disable-next-line no-undef
+        const hasText =
+          document.body.textContent &&
+          // @ts-ignore
+          // eslint-disable-next-line no-undef
+          document.body.textContent.trim().length > 100;
+
+        return hasContent && hasText;
+      });
+
+      return isValid;
+    } catch (error) {
+      return false;
+    }
+  }
+
   async fetchProductInfo(productId: string): Promise<ProviderResult> {
     return retryWithBackoff(
       async () => {
@@ -124,31 +282,83 @@ export class WildberriesProvider extends BaseProvider {
           // Устанавливаем User-Agent
           await page.setUserAgent(getRandomUserAgent());
 
-          // Переходим на страницу
-          await page.goto(url, {
-            waitUntil: "networkidle0", // Ждем полной загрузки
-            timeout: 30000,
-          });
-
           // Устанавливаем viewport
           await page.setViewport({ width: 1366, height: 768 });
 
-          // Ждем загрузки контента
-          await page.waitForTimeout(5000);
+          // Дополнительные настройки страницы для стабильности
+          // Отключаем блокировку ресурсов для лучшей совместимости
+          // await page.setRequestInterception(true);
+          // page.on('request', (req) => {
+          //   // Блокируем ненужные ресурсы для ускорения загрузки
+          //   if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
+          //     req.abort();
+          //   } else {
+          //     req.continue();
+          //   }
+          // });
 
-          // Ждем появления основных элементов
-          await Promise.race([
-            page.waitForSelector("h1", { timeout: 15000 }),
-            page.waitForSelector(".product-page__title", { timeout: 15000 }),
-            page.waitForSelector(".price-block__price", { timeout: 15000 }),
-            page.waitForSelector(".price-block__wallet-price", { timeout: 15000 }),
-            page.waitForSelector(".price-block__final-price", { timeout: 15000 }),
-          ]).catch(() => {
-            // Игнорируем ошибки, если элементы не найдены
+          // Переходим на страницу с улучшенным ожиданием
+          await page.goto(url, {
+            waitUntil: "domcontentloaded",
+            timeout: 30000,
           });
+
+          // Ждем полной загрузки страницы
+          await this.waitForPageLoad(page);
+
+          // Проверяем, что страница не заблокирована
+          const isBlocked = await page.evaluate(() => {
+            // @ts-ignore - document доступен в контексте браузера
+            // eslint-disable-next-line no-undef
+            const blockedSelectors = [
+              ".captcha",
+              ".recaptcha",
+              ".cloudflare-challenge",
+              ".cf-browser-verification",
+              "[data-captcha]",
+            ];
+
+            return blockedSelectors.some(selector => {
+              // @ts-ignore
+              // eslint-disable-next-line no-undef
+              return document.querySelector(selector);
+            });
+          });
+
+          if (isBlocked) {
+            throw new Error("Страница заблокирована (капча или проверка)");
+          }
+
+          // Проверяем валидность страницы
+          const isValidPage = await this.validatePage(page);
+          if (!isValidPage) {
+            throw new Error("Страница не является валидной страницей товара");
+          }
+
+          // Ждем появления элементов товара
+          const elementsLoaded = await this.waitForProductElements(page);
+          if (!elementsLoaded) {
+            // Если элементы не загрузились, даем дополнительное время
+            await page.waitForTimeout(5000);
+          }
 
           // Дополнительное ожидание для динамического контента
           await page.waitForTimeout(3000);
+
+          // Ждем загрузки изображений (если есть)
+          try {
+            await page.waitForFunction(
+              () => {
+                // @ts-ignore - document доступен в контексте браузера
+                // eslint-disable-next-line no-undef
+                const images = document.querySelectorAll("img");
+                return Array.from(images).every((img: any) => img.complete);
+              },
+              { timeout: 5000 }
+            );
+          } catch (error) {
+            // Игнорируем ошибки загрузки изображений
+          }
 
           // Извлекаем данные с учетом всех типов цен
           const productData = await page.evaluate(() => {
@@ -194,7 +404,10 @@ export class WildberriesProvider extends BaseProvider {
               document.querySelector(".price-block__price") ||
               // @ts-ignore
               // eslint-disable-next-line no-undef
-              document.querySelector("[data-price]");
+              document.querySelector("[data-price]") ||
+              // @ts-ignore
+              // eslint-disable-next-line no-undef
+              document.querySelector(".price");
             // @ts-ignore
             const fallbackPrice =
               fallbackPriceElement?.textContent?.trim() ||
@@ -211,7 +424,10 @@ export class WildberriesProvider extends BaseProvider {
               document.querySelector(".zoom-image-container img") ||
               // @ts-ignore
               // eslint-disable-next-line no-undef
-              document.querySelector(".photo-zoom__preview img");
+              document.querySelector(".photo-zoom__preview img") ||
+              // @ts-ignore
+              // eslint-disable-next-line no-undef
+              document.querySelector(".product-page__image img");
             // @ts-ignore
             const imageUrl =
               // @ts-ignore
@@ -229,8 +445,49 @@ export class WildberriesProvider extends BaseProvider {
             };
           });
 
-          if (!productData.title || !productData.mainPrice) {
-            throw new Error("Не удалось извлечь основные данные с страницы");
+          if (!productData.title) {
+            throw new Error("Не удалось извлечь название товара");
+          }
+
+          if (!productData.mainPrice) {
+            providerLogger.warn("Не удалось извлечь цену товара, попытка дополнительного поиска", {
+              productId,
+              title: productData.title,
+            });
+
+            // Дополнительная попытка найти цену
+            const additionalPrice = await page.evaluate(() => {
+              // @ts-ignore - document доступен в контексте браузера
+              // eslint-disable-next-line no-undef
+              // Ищем цену в различных форматах
+              const priceSelectors = [
+                ".price-block__price",
+                ".price-block__wallet-price",
+                ".price-block__final-price",
+                "[data-price]",
+                ".price",
+                ".product-price",
+                ".price-current",
+                ".price__current",
+              ];
+
+              for (const selector of priceSelectors) {
+                // @ts-ignore
+                // eslint-disable-next-line no-undef
+                const element = document.querySelector(selector);
+                if (element && element.textContent?.trim()) {
+                  return element.textContent.trim();
+                }
+              }
+
+              return null;
+            });
+
+            if (additionalPrice) {
+              productData.mainPrice = additionalPrice;
+            } else {
+              throw new Error("Не удалось извлечь цену товара после дополнительного поиска");
+            }
           }
 
           // Извлекаем все типы цен
@@ -281,9 +538,9 @@ export class WildberriesProvider extends BaseProvider {
         }
       },
       {
-        maxRetries: 1,
-        baseDelay: 2000,
-        maxDelay: 5000,
+        maxRetries: 2, // Увеличиваем количество попыток
+        baseDelay: 3000, // Увеличиваем базовую задержку
+        maxDelay: 8000, // Увеличиваем максимальную задержку
       }
     );
   }
@@ -292,12 +549,12 @@ export class WildberriesProvider extends BaseProvider {
     this.requestCount++;
     const now = Date.now();
 
-    // Минимальная задержка между запросами
-    const minDelay = 2000;
+    // Увеличиваем минимальную задержку между запросами
+    const minDelay = 3000;
     const timeSinceLastRequest = now - this.lastRequestTime;
 
     if (timeSinceLastRequest < minDelay) {
-      const delay = minDelay - timeSinceLastRequest + getRandomDelay(500, 1500);
+      const delay = minDelay - timeSinceLastRequest + getRandomDelay(1000, 2000);
       await sleep(delay);
     }
 
