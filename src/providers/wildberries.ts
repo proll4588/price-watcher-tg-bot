@@ -3,12 +3,12 @@ import { BaseProvider } from "./base";
 import { ProviderResult } from "../types";
 import { providerLogger } from "../utils/logger";
 import { retryWithBackoff, sleep, getRandomDelay } from "../utils/retry";
-import { getRandomUserAgent } from "../utils/user-agents";
 
 export class WildberriesProvider extends BaseProvider {
   private browser: Browser | null = null;
   private requestCount = 0;
   private lastRequestTime = 0;
+  private initAttempts = 0;
 
   constructor(affiliateToken?: string) {
     const config = {
@@ -35,6 +35,32 @@ export class WildberriesProvider extends BaseProvider {
       }
 
       if (!this.browser) {
+        // Получаем аргументы браузера из переменной окружения или используем дефолтные
+        const defaultArgs = [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--no-first-run",
+          "--disable-web-security",
+          "--disable-extensions",
+          "--disable-sync",
+          "--disable-translate",
+          "--hide-scrollbars",
+          "--mute-audio",
+          "--no-zygote",
+        ];
+
+        const puppeteerArgs = process.env["PUPPETEER_ARGS"]
+          ? process.env["PUPPETEER_ARGS"].split(",")
+          : defaultArgs;
+
+        providerLogger.info("Инициализация браузера с аргументами:", {
+          argsCount: puppeteerArgs.length,
+          chromeBin: process.env["CHROME_BIN"] || "default",
+          platform: process.platform,
+        });
+
         this.browser = await puppeteer.launch({
           headless: "new",
           executablePath:
@@ -42,33 +68,13 @@ export class WildberriesProvider extends BaseProvider {
             (process.platform === "darwin"
               ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
               : "/usr/bin/chromium-browser"),
-          args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--no-first-run",
-            "--disable-web-security",
-            "--disable-features=VizDisplayCompositor",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-background-networking",
-            "--disable-default-apps",
-            "--disable-extensions",
-            "--disable-sync",
-            "--disable-translate",
-            "--hide-scrollbars",
-            "--mute-audio",
-            "--no-zygote",
-            "--single-process",
-          ],
+          args: puppeteerArgs,
           defaultViewport: {
             width: 1366,
             height: 768,
           },
           ignoreHTTPSErrors: true,
-          timeout: 30000,
+          timeout: 60000, // Увеличиваем таймаут для продакшена
         });
 
         // Добавляем обработчик события закрытия браузера
@@ -78,8 +84,33 @@ export class WildberriesProvider extends BaseProvider {
         });
       }
     } catch (error) {
-      console.error("DEBUG - Ошибка при инициализации браузера:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      providerLogger.error("Ошибка при инициализации браузера:", {
+        error: errorMessage,
+        stack: errorStack,
+        platform: process.platform,
+        chromeBin: process.env["CHROME_BIN"],
+      });
       this.browser = null;
+
+      // Если это ошибка Target closed, пробуем еще раз (максимум 3 попытки)
+      if (
+        (errorMessage.includes("Target closed") || errorMessage.includes("Protocol error")) &&
+        this.initAttempts < 3
+      ) {
+        this.initAttempts++;
+        providerLogger.warn(
+          `Повторная попытка инициализации браузера ${this.initAttempts}/3 через 5 секунд`,
+          { error: errorMessage, attempt: this.initAttempts }
+        );
+        await sleep(5000);
+        return this.initBrowser();
+      }
+
+      // Сбрасываем счетчик попыток
+      this.initAttempts = 0;
+
       throw error;
     }
   }
@@ -240,6 +271,15 @@ export class WildberriesProvider extends BaseProvider {
           ".product-not-found",
         ];
 
+        // Проверяем заголовок страницы на наличие ошибок
+        // @ts-ignore
+        // eslint-disable-next-line no-undef
+        const pageTitle = (document as any).title || "";
+        const isErrorPage =
+          pageTitle.includes("По Вашему запросу ничего не найдено") ||
+          pageTitle.includes("Страница не найдена") ||
+          pageTitle.includes("Ошибка");
+
         const foundErrorElements: string[] = [];
         for (const selector of errorSelectors) {
           // @ts-ignore
@@ -273,14 +313,10 @@ export class WildberriesProvider extends BaseProvider {
 
         // @ts-ignore
         // eslint-disable-next-line no-undef
-        const pageTitle = (document as any).title || "";
-
-        // @ts-ignore
-        // eslint-disable-next-line no-undef
         const url = (document as any).location.href;
 
         return {
-          hasErrorElements: foundErrorElements.length > 0,
+          hasErrorElements: foundErrorElements.length > 0 || isErrorPage,
           foundErrorElements,
           hasContentElements: foundContentElements.length > 0,
           foundContentElements,
@@ -288,7 +324,12 @@ export class WildberriesProvider extends BaseProvider {
           bodyTextLength: bodyText.length,
           pageTitle,
           url,
-          isValid: foundErrorElements.length === 0 && foundContentElements.length > 0 && hasText,
+          isErrorPage,
+          isValid:
+            foundErrorElements.length === 0 &&
+            !isErrorPage &&
+            foundContentElements.length > 0 &&
+            hasText,
         };
       });
 
@@ -297,6 +338,8 @@ export class WildberriesProvider extends BaseProvider {
         hasContentElements: validationResult.hasContentElements,
         foundContentElements: validationResult.foundContentElements,
         pageTitle: validationResult.pageTitle,
+        isErrorPage: validationResult.isErrorPage,
+        hasErrorElements: validationResult.hasErrorElements,
       });
 
       return validationResult.isValid;
@@ -327,13 +370,32 @@ export class WildberriesProvider extends BaseProvider {
         try {
           // Проверяем состояние браузера перед созданием страницы
           if (!this.browser || !this.browser.isConnected()) {
-            throw new Error("Браузер недоступен или отключен");
+            providerLogger.warn("Браузер недоступен, переинициализируем", {
+              hasBrowser: !!this.browser,
+              isConnected: this.browser?.isConnected(),
+            });
+            await this.initBrowser();
+
+            if (!this.browser || !this.browser.isConnected()) {
+              throw new Error("Не удалось инициализировать браузер");
+            }
           }
 
           page = await this.browser.newPage();
 
-          // Устанавливаем User-Agent
-          await page.setUserAgent(getRandomUserAgent());
+          // Устанавливаем User-Agent и заголовки для обхода блокировки
+          await page.setUserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          );
+
+          await page.setExtraHTTPHeaders({
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3",
+            "Accept-Encoding": "gzip, deflate, br",
+            DNT: "1",
+            Connection: "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+          });
 
           // Устанавливаем viewport
           await page.setViewport({ width: 1366, height: 768 });
@@ -351,10 +413,37 @@ export class WildberriesProvider extends BaseProvider {
           // });
 
           // Переходим на страницу с улучшенным ожиданием
+          providerLogger.info("Переходим на страницу товара", { url });
+
           await page.goto(url, {
             waitUntil: "networkidle2", // Ждем завершения сетевых запросов
             timeout: 60000, // Увеличиваем таймаут
           });
+
+          // Логируем заголовок страницы и URL
+          const pageTitle = await page.title();
+          const currentUrl = page.url();
+          providerLogger.info("Страница загружена", {
+            title: pageTitle,
+            currentUrl,
+            originalUrl: url,
+          });
+
+          // Проверяем, есть ли редирект
+          if (currentUrl !== url) {
+            providerLogger.warn("Обнаружен редирект", {
+              originalUrl: url,
+              currentUrl,
+            });
+          }
+
+          // Проверяем, не заблокирована ли страница
+          if (pageTitle.includes("По Вашему запросу ничего не найдено")) {
+            providerLogger.error("Страница заблокирована или товар не найден", {
+              title: pageTitle,
+              currentUrl,
+            });
+          }
 
           // Ждем полной загрузки страницы
           await this.waitForPageLoad(page);
@@ -387,6 +476,12 @@ export class WildberriesProvider extends BaseProvider {
 
           // Проверяем валидность страницы
           const isValidPage = await this.validatePage(page);
+          providerLogger.info("Результат валидации страницы", {
+            isValidPage,
+            title: pageTitle,
+            currentUrl,
+          });
+
           if (!isValidPage) {
             throw new Error("Страница не является валидной страницей товара");
           }
