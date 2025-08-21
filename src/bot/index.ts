@@ -67,9 +67,10 @@ class TelegramBot {
           // Добавляем пользователя в контекст
           ctx.user = user;
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
           botLogger.error("Ошибка при получении пользователя:", {
             telegramId: ctx.from.id,
-            error,
+            error: errorMessage,
           });
         }
       }
@@ -98,22 +99,60 @@ class TelegramBot {
 
     // Обработка callback-запросов от inline-кнопок
     this.bot.on("callback_query", handleCallbackQuery);
+
+    // Глобальный обработчик ошибок
+    this.bot.catch((err: unknown, ctx) => {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorStack = err instanceof Error ? err.stack : undefined;
+
+      botLogger.error("Необработанная ошибка в боте:", {
+        error: errorMessage,
+        stack: errorStack,
+        userId: ctx.from?.id,
+        username: ctx.from?.username,
+        messageType: ctx.message ? "message" : "callback",
+        updateId: ctx.update?.update_id,
+        messageText: "text" in (ctx.message || {}) ? (ctx.message as any).text : "N/A",
+        callbackData: "data" in (ctx.callbackQuery || {}) ? (ctx.callbackQuery as any).data : "N/A",
+      });
+
+      // Отправляем сообщение пользователю об ошибке
+      if (ctx.message && ctx.from) {
+        ctx
+          .reply("❌ Произошла неожиданная ошибка. Попробуйте позже или обратитесь в поддержку.")
+          .catch(replyError => {
+            botLogger.error("Ошибка при отправке сообщения об ошибке:", { replyError });
+          });
+      }
+    });
   }
 
   private async handleTextMessage(ctx: ExtendedContext): Promise<void> {
-    const text = getMessageText(ctx);
-    if (!text || !ctx.from) return;
+    try {
+      const text = getMessageText(ctx);
+      if (!text || !ctx.from) return;
 
-    // Проверяем, является ли сообщение ссылкой
-    if (this.isUrl(text)) {
-      await this.handleProductUrl(ctx, text);
-    } else {
-      await ctx.reply(
-        "Отправьте ссылку на товар, чтобы начать отслеживание цены.\n\n" +
-          "Поддерживаемые маркетплейсы:\n" +
-          "• Wildberries (wildberries.ru)\n\n" +
-          "Используйте /help для получения справки."
-      );
+      // Проверяем, является ли сообщение ссылкой
+      if (this.isUrl(text)) {
+        await this.handleProductUrl(ctx, text);
+      } else {
+        await ctx.reply(
+          "Отправьте ссылку на товар, чтобы начать отслеживание цены.\n\n" +
+            "Поддерживаемые маркетплейсы:\n" +
+            "• Wildberries (wildberries.ru)\n\n" +
+            "Используйте /help для получения справки."
+        );
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      botLogger.error("Ошибка при обработке текстового сообщения:", {
+        error: errorMessage,
+        userId: ctx.from?.id,
+        username: ctx.from?.username,
+        text: getMessageText(ctx),
+      });
+
+      await ctx.reply("❌ Произошла ошибка при обработке сообщения. Попробуйте позже.");
     }
   }
 
@@ -231,10 +270,17 @@ class TelegramBot {
 
       await ctx.reply(message);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
       botLogger.error("Ошибка при обработке ссылки на товар:", {
         url,
-        error,
+        error: errorMessage,
+        stack: errorStack,
+        userId: ctx.from?.id,
+        username: ctx.from?.username,
       });
+
       await ctx.reply(
         "❌ Произошла ошибка при добавлении товара. Попробуйте позже или обратитесь в поддержку."
       );
