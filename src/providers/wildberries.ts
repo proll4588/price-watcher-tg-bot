@@ -240,7 +240,7 @@ export class WildberriesProvider extends BaseProvider {
           ".product-not-found",
         ];
 
-        const foundErrorElements = [];
+        const foundErrorElements: string[] = [];
         for (const selector of errorSelectors) {
           // @ts-ignore
           // eslint-disable-next-line no-undef
@@ -259,7 +259,7 @@ export class WildberriesProvider extends BaseProvider {
           ".product-page__content",
         ];
 
-        const foundContentElements = contentSelectors.filter(selector => {
+        const foundContentElements: string[] = contentSelectors.filter(selector => {
           // @ts-ignore
           // eslint-disable-next-line no-undef
           return document.querySelector(selector);
