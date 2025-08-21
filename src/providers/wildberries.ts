@@ -110,49 +110,28 @@ export class WildberriesProvider extends BaseProvider {
   }
 
   /**
-   * Ждет полной загрузки страницы с проверкой готовности контента
+   * Ждет полной загрузки страницы
    */
   private async waitForPageLoad(page: Page): Promise<void> {
     try {
-      // Ждем загрузки DOM
-      await page.waitForFunction(
-        () => {
-          // @ts-ignore - document доступен в контексте браузера
-          // eslint-disable-next-line no-undef
-          return document.readyState === "domcontentloaded";
-        },
-        { timeout: 15000 }
-      );
-
-      // Ждем завершения сетевых запросов (проверяем отсутствие активности)
-      await page.waitForFunction(
-        () => {
-          // @ts-ignore - document доступен в контексте браузера
-          // eslint-disable-next-line no-undef
-          return document.readyState === "complete";
-        },
-        { timeout: 20000 }
-      );
-
-      // Дополнительная проверка готовности страницы
       await page.waitForFunction(
         () => {
           // @ts-ignore - document доступен в контексте браузера
           // eslint-disable-next-line no-undef
           return (
-            document.readyState === "complete" &&
+            (document as any).readyState === "complete" &&
             // @ts-ignore
             // eslint-disable-next-line no-undef
-            !document.querySelector(".loading") &&
+            !(document as any).querySelector(".loading") &&
             // @ts-ignore
             // eslint-disable-next-line no-undef
-            !document.querySelector('[data-loading="true"]') &&
+            !(document as any).querySelector('[data-loading="true"]') &&
             // @ts-ignore
             // eslint-disable-next-line no-undef
-            !document.querySelector(".spinner") &&
+            !(document as any).querySelector(".spinner") &&
             // @ts-ignore
             // eslint-disable-next-line no-undef
-            !document.querySelector(".loader")
+            !(document as any).querySelector(".loader")
           );
         },
         { timeout: 10000 }
@@ -244,10 +223,10 @@ export class WildberriesProvider extends BaseProvider {
         // @ts-ignore
         // eslint-disable-next-line no-undef
         const hasText =
-          document.body.textContent &&
+          (document as any).body.textContent &&
           // @ts-ignore
           // eslint-disable-next-line no-undef
-          document.body.textContent.trim().length > 100;
+          (document as any).body.textContent.trim().length > 100;
 
         return hasContent && hasText;
       });
@@ -503,7 +482,7 @@ export class WildberriesProvider extends BaseProvider {
             productId,
             productData.title,
             mainPrice,
-            productData.imageUrl,
+            productData.imageUrl || undefined,
             url,
             walletPrice,
             finalPrice

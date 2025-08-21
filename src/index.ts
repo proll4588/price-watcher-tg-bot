@@ -11,6 +11,10 @@ import { analyticsService } from "./services/analytics";
 import { metricsService } from "./services/metrics";
 import config from "./config";
 
+// Импортируем воркеры для их запуска в основном процессе
+import "./workers/price-checker";
+import "./workers/notifier";
+
 class Application {
   private app: express.Application;
   private server: any;

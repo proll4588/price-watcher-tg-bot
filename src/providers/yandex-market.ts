@@ -273,7 +273,7 @@ export class YandexMarketProvider extends BaseProvider {
             productId,
             productData.title,
             mainPrice,
-            productData.imageUrl,
+            productData.imageUrl || undefined,
             url
           );
 

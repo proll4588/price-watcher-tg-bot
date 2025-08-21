@@ -13,6 +13,41 @@ class NotifierWorker {
   private setupWorker(): void {
     queueService.setNotificationHandler(this.handleNotification.bind(this));
     queueLogger.info("Воркер уведомлений запущен");
+
+    // Добавляем периодическое логирование состояния воркера
+    this.startHealthCheck();
+  }
+
+  private startHealthCheck(): void {
+    // Логируем состояние воркера каждые 5 минут
+    setInterval(
+      async () => {
+        try {
+          const stats = await queueService.getQueueStats();
+          const uptime = process.uptime();
+          const memory = process.memoryUsage();
+
+          // Обновляем метрики
+          metricsService.setWorkerHealth("notifier", true);
+          metricsService.setWorkerUptime("notifier", uptime);
+          metricsService.setWorkerMemory("notifier", "rss", memory.rss);
+          metricsService.setWorkerMemory("notifier", "heapUsed", memory.heapUsed);
+          metricsService.setWorkerMemory("notifier", "heapTotal", memory.heapTotal);
+
+          queueLogger.info("Состояние воркера уведомлений", {
+            priceCheckQueue: stats.priceCheck,
+            notificationQueue: stats.notification,
+            uptime,
+            memory,
+          });
+        } catch (error) {
+          queueLogger.error("Ошибка при получении статистики воркера", { error });
+          metricsService.setWorkerHealth("notifier", false);
+          metricsService.incrementWorkerError("notifier", "health_check_failed");
+        }
+      },
+      5 * 60 * 1000
+    ); // 5 минут
   }
 
   private async handleNotification(job: Job): Promise<void> {

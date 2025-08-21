@@ -1,40 +1,95 @@
-# 🚀 Быстрый старт
+# Быстрый старт
 
-## Минимальная настройка
+## Запуск приложения
 
-### 1. Клонируйте репозиторий
+1. **Установите зависимости:**
+
+   ```bash
+   npm install
+   ```
+
+2. **Настройте переменные окружения:**
+
+   ```bash
+   cp env.example .env
+   # Отредактируйте .env файл
+   ```
+
+3. **Запустите базу данных:**
+
+   ```bash
+   docker-compose up -d postgres redis
+   ```
+
+4. **Выполните миграции:**
+
+   ```bash
+   npm run db:migrate
+   ```
+
+5. **Запустите приложение:**
+   ```bash
+   npm run dev
+   ```
+
+## Мониторинг
+
+### Запуск мониторинга
 
 ```bash
-git clone <your-repo-url>
-cd my-app
+npm run monitoring:start
 ```
 
-### 2. Настройте окружение
+Откройте Grafana: http://localhost:3001
+
+- Логин: `admin`
+- Пароль: из переменной `GF_SECURITY_ADMIN_PASSWORD`
+
+### Проверка состояния воркеров
 
 ```bash
-# Автоматическая настройка
-./scripts/setup-env.sh
-
-# Или вручную
-cp env.example .env
-# Отредактируйте .env файл
+npm run debug:workers
 ```
 
-### 3. Запустите проект
+### Проверка метрик
 
 ```bash
-docker-compose up -d
+curl http://localhost:3000/metrics
 ```
 
-### 4. Проверьте работу
+## Основные команды
 
-```bash
-# Статус контейнеров
-docker-compose ps
+- `npm run dev` - запуск в режиме разработки
+- `npm run build` - сборка проекта
+- `npm run start` - запуск в продакшене
+- `npm run debug:workers` - проверка состояния воркеров
+- `npm run debug:queues` - проверка очередей
+- `npm run debug:tracks` - проверка отслеживаний
 
-# Логи приложения
-docker-compose logs -f app
+## Структура проекта
+
 ```
+src/
+├── bot/           # Telegram бот
+├── workers/       # Воркеры для обработки задач
+├── services/      # Бизнес-логика
+├── providers/     # Провайдеры товаров
+└── utils/         # Утилиты
+
+monitoring/
+├── grafana/       # Конфигурация Grafana
+└── prometheus.yml # Конфигурация Prometheus
+```
+
+## Дашборды Grafana
+
+1. **Price Watcher - Обзор** - общая статистика
+2. **Price Watcher - Провайдеры** - метрики по провайдерам
+3. **Price Watcher - Воркеры и очереди** - мониторинг воркеров
+
+## Устранение неполадок
+
+См. [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) для подробной информации о решении проблем.
 
 ## CI/CD настройка
 
