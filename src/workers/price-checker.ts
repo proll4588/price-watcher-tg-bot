@@ -22,6 +22,41 @@ class PriceCheckerWorker {
 
     // Логируем информацию о повторяющихся задачах при запуске
     this.logRepeatableJobs();
+
+    // Добавляем периодическое логирование состояния воркера
+    this.startHealthCheck();
+  }
+
+  private startHealthCheck(): void {
+    // Логируем состояние воркера каждые 5 минут
+    setInterval(
+      async () => {
+        try {
+          const stats = await queueService.getQueueStats();
+          const uptime = process.uptime();
+          const memory = process.memoryUsage();
+
+          // Обновляем метрики
+          metricsService.setWorkerHealth("price_checker", true);
+          metricsService.setWorkerUptime("price_checker", uptime);
+          metricsService.setWorkerMemory("price_checker", "rss", memory.rss);
+          metricsService.setWorkerMemory("price_checker", "heapUsed", memory.heapUsed);
+          metricsService.setWorkerMemory("price_checker", "heapTotal", memory.heapTotal);
+
+          queueLogger.info("Состояние воркера проверки цен", {
+            priceCheckQueue: stats.priceCheck,
+            notificationQueue: stats.notification,
+            uptime,
+            memory,
+          });
+        } catch (error) {
+          queueLogger.error("Ошибка при получении статистики воркера", { error });
+          metricsService.setWorkerHealth("price_checker", false);
+          metricsService.incrementWorkerError("price_checker", "health_check_failed");
+        }
+      },
+      5 * 60 * 1000
+    ); // 5 минут
   }
 
   private async logRepeatableJobs(): Promise<void> {

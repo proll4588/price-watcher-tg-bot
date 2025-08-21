@@ -19,6 +19,9 @@ class MetricsService {
   private notificationsSentCounter!: Counter;
   private notificationsFailedCounter!: Counter;
   private workerErrorsCounter!: Counter;
+  private workerHealthGauge!: Gauge;
+  private workerUptimeGauge!: Gauge;
+  private workerMemoryGauge!: Gauge;
 
   // Метрики товаров
   private productsTrackedGauge!: Gauge;
@@ -109,6 +112,24 @@ class MetricsService {
       name: "price_watcher_worker_errors_total",
       help: "Общее количество ошибок воркеров",
       labelNames: ["worker", "error_type"],
+    });
+
+    this.workerHealthGauge = new Gauge({
+      name: "price_watcher_worker_health",
+      help: "Состояние здоровья воркеров (1 = здоров, 0 = нездоров)",
+      labelNames: ["worker"],
+    });
+
+    this.workerUptimeGauge = new Gauge({
+      name: "price_watcher_worker_uptime_seconds",
+      help: "Время работы воркера в секундах",
+      labelNames: ["worker"],
+    });
+
+    this.workerMemoryGauge = new Gauge({
+      name: "price_watcher_worker_memory_bytes",
+      help: "Использование памяти воркером в байтах",
+      labelNames: ["worker", "type"],
     });
 
     // Метрики товаров
@@ -232,6 +253,21 @@ class MetricsService {
   incrementWorkerError(worker: string, errorType: string): void {
     this.workerErrorsCounter.inc({ worker, error_type: errorType });
     metricsLogger.debug("Увеличен счетчик ошибок воркера", { worker, errorType });
+  }
+
+  setWorkerHealth(worker: string, isHealthy: boolean): void {
+    this.workerHealthGauge.set({ worker }, isHealthy ? 1 : 0);
+    metricsLogger.debug("Обновлено состояние здоровья воркера", { worker, isHealthy });
+  }
+
+  setWorkerUptime(worker: string, uptimeSeconds: number): void {
+    this.workerUptimeGauge.set({ worker }, uptimeSeconds);
+    metricsLogger.debug("Обновлено время работы воркера", { worker, uptimeSeconds });
+  }
+
+  setWorkerMemory(worker: string, memoryType: string, bytes: number): void {
+    this.workerMemoryGauge.set({ worker, type: memoryType }, bytes);
+    metricsLogger.debug("Обновлено использование памяти воркером", { worker, memoryType, bytes });
   }
 
   // Методы для товаров
