@@ -9,6 +9,7 @@ import { databaseService } from "./services/database";
 import { queueService } from "./services/queue";
 import { analyticsService } from "./services/analytics";
 import { metricsService } from "./services/metrics";
+import { httpMetricsMiddleware } from "./utils/http-metrics";
 import config from "./config";
 
 // Импортируем воркеры для их запуска в основном процессе
@@ -47,6 +48,9 @@ class Application {
     // Парсинг JSON
     this.app.use(express.json({ limit: "10mb" }));
     this.app.use(express.urlencoded({ extended: true }));
+
+    // HTTP метрики (должен быть перед логированием)
+    this.app.use(httpMetricsMiddleware);
 
     // Логирование запросов
     this.app.use((req, _res, next) => {

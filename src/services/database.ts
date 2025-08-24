@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { dbLogger } from "../utils/logger";
 import { metricsService } from "./metrics";
+import { trackDatabaseQuery } from "../utils/database-metrics";
 
 class DatabaseService {
   private prisma: PrismaClient;
@@ -22,37 +23,39 @@ class DatabaseService {
       lastName?: string;
     }
   ) {
-    try {
-      const user = await this.prisma.user.upsert({
-        where: { telegramId: BigInt(telegramId) },
-        update: {
-          ...(userData && {
-            username: userData.username,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-          }),
-        },
-        create: {
-          telegramId: BigInt(telegramId),
-          username: userData?.username || null,
-          firstName: userData?.firstName || null,
-          lastName: userData?.lastName || null,
-        },
-      });
+    return trackDatabaseQuery("get_or_create_user", async () => {
+      try {
+        const user = await this.prisma.user.upsert({
+          where: { telegramId: BigInt(telegramId) },
+          update: {
+            ...(userData && {
+              username: userData.username,
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+            }),
+          },
+          create: {
+            telegramId: BigInt(telegramId),
+            username: userData?.username || null,
+            firstName: userData?.firstName || null,
+            lastName: userData?.lastName || null,
+          },
+        });
 
-      // Увеличиваем счетчик новых пользователей, если это создание
-      if (user.createdAt.getTime() === user.updatedAt.getTime()) {
-        metricsService.incrementNewUser("telegram");
+        // Увеличиваем счетчик новых пользователей, если это создание
+        if (user.createdAt.getTime() === user.updatedAt.getTime()) {
+          metricsService.incrementNewUser("telegram");
+        }
+
+        return user;
+      } catch (error) {
+        dbLogger.error("Ошибка при получении/создании пользователя:", {
+          telegramId,
+          error,
+        });
+        throw error;
       }
-
-      return user;
-    } catch (error) {
-      dbLogger.error("Ошибка при получении/создании пользователя:", {
-        telegramId,
-        error,
-      });
-      throw error;
-    }
+    });
   }
 
   /**
